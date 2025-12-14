@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Poppins } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
+import QueryProvider from "@/providers/QueryProvider";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -22,11 +23,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${poppins.className} antialiased`}
-      >
-        {children}
-        <Toaster richColors theme="light" />
+      <body className={`${poppins.className} antialiased`}>
+        <QueryProvider>
+          {children}
+          <Toaster richColors theme="light" />
+        </QueryProvider>
       </body>
     </html>
   );

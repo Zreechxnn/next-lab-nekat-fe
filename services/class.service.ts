@@ -1,7 +1,7 @@
 import { api } from "@/lib/api";
 
 type CreateClassPayload = {
-  name: string;
+  nama: string;
 };
 
 const getAll = async () => {

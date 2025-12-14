@@ -41,7 +41,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { PaginationControls } from "@/components/shared/PaginationControls";
-import { List, Plus, Trash } from "lucide-react";
+import { Edit, List, Plus, Trash } from "lucide-react";
+import ClassForm from "./_components/ClassForm";
 
 export default function ClassesPage() {
   const queryClient = useQueryClient();
@@ -59,7 +60,7 @@ export default function ClassesPage() {
 
   useEffect(() => {
     const setFilteredDataEffect = async (data: any) => {
-      setFilteredData(data);
+      setFilteredData(data.data);
     };
 
     if (data) {
@@ -117,17 +118,19 @@ export default function ClassesPage() {
 
   return (
     <div className="flex flex-col gap-6">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
         <div className="px-6 py-5 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-            <List />Daftar Kelas
+            <List />
+            Daftar Kelas
           </h3>
           <div className="flex gap-2">
             <Button
               onClick={createHandler}
               className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-50 transition flex items-center gap-2 shadow-sm"
             >
-              <Plus />Tambah Kelas
+              <Plus />
+              Tambah Kelas
             </Button>
           </div>
         </div>
@@ -137,7 +140,7 @@ export default function ClassesPage() {
             <TableRow>
               <TableHead className="w-16 text-center">NO</TableHead>
               <TableHead>NAMA KELAS</TableHead>
-              <TableHead className="text-center">AKSI</TableHead>
+              <TableHead className="text-center" colSpan={2}>AKSI</TableHead>
             </TableRow>
           </TableHeader>
 
@@ -178,9 +181,16 @@ export default function ClassesPage() {
                       {(currentPage - 1) * limit + idx + 1}
                     </TableCell>
 
-                    <TableCell>{item.kelasNama}</TableCell>
+                    <TableCell>{item.nama}</TableCell>
 
-                    <TableCell className="text-center">
+                    <TableCell colSpan={2} className="text-center space-x-2">
+                      <Button
+                        variant={"outline"}
+                        size="sm"
+                        onClick={() => editHandler(item)}
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button
@@ -224,6 +234,12 @@ export default function ClassesPage() {
       </div>
 
       <PaginationControls {...pagination} />
+
+      <ClassForm
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        initialData={selectedClass}
+      />
     </div>
-  )
+  );
 }
