@@ -4,8 +4,8 @@ type CardPayload = {
   uid: string;
   status: string;
   keterangan: string;
-  userId: number;
-  kelasId: number;
+  userId: number | null;
+  kelasId: number | null;
 };
 
 const getAll = async () => {
@@ -20,19 +20,19 @@ const create = async (data: CardPayload) => {
   return res.data;
 };
 
-const getById = async (id: string) => {
+const getById = async (id: number) => {
   const res = await api.get(`/Kartu/${id}`);
 
   return res.data;
 };
 
-const update = async (id: string, data: CardPayload) => {
+const update = async (id: number, data: CardPayload) => {
   const res = await api.put(`/Kartu/${id}`, data);
 
   return res.data;
 };
 
-const deleteById = async (id: string) => {
+const deleteById = async (id: number) => {
   const res = await api.delete(`/Kartu/${id}`);
 
   return res.data;

@@ -5,7 +5,6 @@ import { toast } from "sonner";
 import { authService } from "@/services/auth.service"; // Import Service
 import { Loader2 } from "lucide-react";
 
-// Interface (sesuai data yang diterima)
 interface ProfileData {
   id: number;
   username: string;
@@ -19,7 +18,6 @@ export default function MyProfilePage() {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   
-  // State untuk form password
   const [passForm, setPassForm] = useState({
     oldPassword: "",
     newPassword: "",
@@ -27,7 +25,6 @@ export default function MyProfilePage() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // 1. Fetch Data Profil (GET) menggunakan authService
   useEffect(() => {
     const fetchProfile = async () => {
       try {
@@ -53,7 +50,6 @@ export default function MyProfilePage() {
     setPassForm({ ...passForm, [e.target.name]: e.target.value });
   };
 
-  // 2. Submit Ganti Password (POST) menggunakan authService
   const handleSubmitPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -95,7 +91,7 @@ export default function MyProfilePage() {
       <h1 className="text-2xl font-bold text-gray-800 mb-6">Profil Saya</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* KARTU 1: Informasi User */}
+        {/* Data Pengguna */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 h-fit">
           <h2 className="text-lg font-semibold mb-4 text-blue-600 border-b pb-2">
             Data Pengguna
@@ -141,7 +137,7 @@ export default function MyProfilePage() {
           </div>
         </div>
 
-        {/* KARTU 2: Ganti Password */}
+        {/* Ganti Password */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <h2 className="text-lg font-semibold mb-4 text-orange-600 border-b pb-2">
             Keamanan (Ganti Password)
