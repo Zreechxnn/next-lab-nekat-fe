@@ -8,7 +8,15 @@ import { exportAktivitasToExcel } from "@/utils/exportActivity";
 import { activityService } from "@/services/activity.service";
 import { AxiosError } from "axios";
 import { toast } from "sonner";
-import { Activity, ChartPie, Check, Clock, DoorOpen, Download, Trash } from "lucide-react";
+import {
+  Activity,
+  ChartPie,
+  Check,
+  Clock,
+  DoorOpen,
+  Download,
+  Trash,
+} from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -58,17 +66,23 @@ export default function ActivityPage() {
     paginatedData,
     currentPage,
     limit,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     totalItems,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     totalPages,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     hasNextPage,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     hasPrevPage,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     goToPage,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     nextPage,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     prevPage,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     setSearchQuery,
   } = pagination;
-
-  const [localSearchQuery, setLocalSearchQuery] = useState("");
 
   const connectionRef = useRef<HubConnection | null>(null);
 
@@ -150,6 +164,12 @@ export default function ActivityPage() {
           await connection.start();
           connection.on("ReceiveCheckIn", fetchData);
           connection.on("ReceiveCheckOut", fetchData);
+
+          // LISTENER BARU: Jika admin lain menghapus semua data
+          connection.on("AllAksesLogsDeleted", () => {
+            setData([]);
+            toast.info("Semua riwayat aktivitas telah dibersihkan oleh sistem.");
+          });
         } catch (e) {
           console.error("SignalR Error", e);
         }
@@ -161,7 +181,7 @@ export default function ActivityPage() {
     };
   }, []);
 
-  const handleRefresh = () => fetchData();
+  // const handleRefresh = () => fetchData();
 
   const handleDelete = async (id: string) => {
     toast.loading("Menghapus data...", { id: "delete" });
@@ -179,6 +199,27 @@ export default function ActivityPage() {
       }
     } finally {
       toast.dismiss("delete");
+    }
+  };
+
+  // --- HANDLER DELETE ALL ---
+  const handleDeleteAll = async () => {
+    toast.loading("Menghapus semua data...", { id: "delete-all" });
+    try {
+      const res = await activityService.deleteAll();
+      if (res.success) {
+        setData([]); // Langsung kosongkan data lokal
+        toast.success("Semua data aktivitas berhasil dihapus.");
+      }
+    } catch (e) {
+      if (e instanceof AxiosError) {
+        toast.error(
+          e.response?.data.message || "Gagal menghapus semua data."
+        );
+        console.error(e);
+      }
+    } finally {
+      toast.dismiss("delete-all");
     }
   };
 
@@ -220,7 +261,6 @@ export default function ActivityPage() {
 
       {/* Filter & Stats Container */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-6">
-        {/* PERBAIKAN: Layout Grid jadi 6 Kolom & Tambah Filter User */}
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <SelectBox
             label="Lab"
@@ -238,7 +278,6 @@ export default function ActivityPage() {
             opts={options.kelas}
             k="nama"
           />
-          {/* Filter User Ditambahkan Kembali */}
           <SelectBox
             label="User"
             name="user"
@@ -323,11 +362,48 @@ export default function ActivityPage() {
             Lab
           </h3>
           <div className="flex gap-2">
+            {/* TOMBOL DELETE ALL */}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="destructive"
+                  className="px-4 py-2 rounded-lg text-sm font-semibold shadow-sm flex items-center gap-2"
+                  disabled={data.length === 0}
+                >
+                  Hapus Semua <Trash className="w-4 h-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="text-red-600">
+                    PERINGATAN KERAS!
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Apakah Anda yakin ingin menghapus <b>SELURUH RIWAYAT AKTIVITAS</b>?
+                    <br />
+                    <br />
+                    Tindakan ini akan menghapus semua data log akses dari
+                    database secara permanen. Data yang hilang tidak dapat
+                    dikembalikan.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Batal</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleDeleteAll}
+                    className="bg-red-600 hover:bg-red-700 text-white"
+                  >
+                    Ya, Hapus Semuanya
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+
             <Button
               onClick={handleExportClick}
               className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-50 transition flex items-center gap-2 shadow-sm"
             >
-              Export excel <Download />
+              Export excel <Download className="w-4 h-4" />
             </Button>
           </div>
         </div>
@@ -469,19 +545,18 @@ export default function ActivityPage() {
 }
 
 // --- Reusable Components ---
-// Definisi Tipe (Lebih bersih daripada 'any')
 interface Option {
   id: string | number;
-  [key: string]: any; // Untuk menampung properti k
+  [key: string]: any;
 }
 
 interface SelectBoxProps {
   label: string;
   name: string;
   val: string;
-  fn: (e: any) => void; // Fungsi handler untuk onChange
+  fn: (e: any) => void;
   opts: Option[];
-  k: string; // Key untuk menampilkan nama (misalnya 'nama' atau 'username')
+  k: string;
 }
 
 export function SelectBox({ label, name, val, fn, opts, k }: SelectBoxProps) {
