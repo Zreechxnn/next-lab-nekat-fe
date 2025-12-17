@@ -29,8 +29,14 @@ const changePassword = async (changePasswordPayload: ChangePasswordPayload) => {
   return res.data;
 };
 
+const updateProfile = async (payload: { username: string }) => {
+  const res = await api.put("/Auth/profile", payload);
+  return res.data;
+};
+
 export const authService = {
   login,
   getProfile,
   changePassword,
+  updateProfile,
 };
