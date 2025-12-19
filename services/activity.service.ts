@@ -20,4 +20,9 @@ const deleteAll = async () => {
   return res.data;
 };
 
-export const activityService = { getAll, getById, deleteById, deleteAll };
+const updateNote = async (id: number, keterangan: string) => {
+  const res = await api.put(`/Aktivitas/${id}/catatan`, { keterangan });
+  return res.data;
+};
+
+export const activityService = { getAll, getById, deleteById, deleteAll, updateNote };
