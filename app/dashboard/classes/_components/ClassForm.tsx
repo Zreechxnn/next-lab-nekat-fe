@@ -1,13 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
-
-import { User } from "@/types/user";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useState } from "react";
-import { userService } from "@/services/user.service";
+import { useEffect } from "react";
 import { toast } from "sonner";
 import { AxiosError } from "axios";
 import {
@@ -21,14 +18,12 @@ import {
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Eye, EyeOff } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -39,62 +34,71 @@ import {
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { classService } from "@/services/class.service";
+import { api } from "@/lib/api";
 
+// Schema validasi
 const formSchema = z.object({
   nama: z.string().min(1, "Nama Kelas wajib diisi."),
+  periodeId: z.string().min(1, "Periode wajib dipilih."),
 });
 
-export type FormValues = z.infer<typeof formSchema>;
+type FormValues = z.infer<typeof formSchema>;
 
-interface ClassFormProps {
-  isOpen: boolean;
-  onClose: () => void;
-  initialData: any | null;
-}
-
-export default function ClassForm({
-  isOpen,
-  onClose,
-  initialData,
-}: ClassFormProps) {
+export default function ClassForm({ isOpen, onClose, initialData }: any) {
   const queryClient = useQueryClient();
   const isEditMode = !!initialData;
+
+  // Ambil data periode untuk dropdown
+  const { data: periods } = useQuery({
+    queryKey: ["periods"],
+    queryFn: async () => {
+      const res = await api.get("/Periode");
+      return res.data;
+    },
+    enabled: isOpen,
+  });
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       nama: "",
+      periodeId: "",
     },
   });
 
+  // Reset form saat modal dibuka/tutup atau ganti data
   useEffect(() => {
     if (isOpen) {
       if (initialData) {
         form.setValue("nama", initialData.nama);
+        form.setValue("periodeId", String(initialData.periodeId));
       } else {
-        form.reset();
+        form.reset({ nama: "", periodeId: "" });
       }
     }
-  }, [form, isOpen, initialData]);
+  }, [isOpen, initialData, form]);
 
   const mutation = useMutation({
     mutationFn: async (values: FormValues) => {
+      const payload = {
+        nama: values.nama,
+        periodeId: Number(values.periodeId),
+      };
+
       if (isEditMode) {
-        await classService.update(String(initialData.id), values);
+        return await classService.update(String(initialData.id), payload);
       } else {
-        await classService.create(values);
+        return await classService.create(payload);
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["classes"] });
-      toast.success(
-        `Berhasil ${isEditMode ? "mengupdate" : "membuat"} data kelas!`
-      );
+      toast.success(`Kelas berhasil ${isEditMode ? "diperbarui" : "ditambahkan"}!`);
       onClose();
     },
     onError: (err) => {
       if (err instanceof AxiosError) {
-        toast.error(err.response?.data.message || "Terjadi kesalahan!");
+        toast.error(err.response?.data.message || "Terjadi kesalahan.");
       }
     },
   });
@@ -102,19 +106,19 @@ export default function ClassForm({
   const onSubmit = (values: FormValues) => {
     mutation.mutate(values);
   };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>
-            {isEditMode ? "Edit Kelas" : "Tambah Kelas"}
-          </DialogTitle>
+          <DialogTitle>{isEditMode ? "Edit Kelas" : "Tambah Kelas"}</DialogTitle>
           <DialogDescription>
-            Masukkan detail kelas untuk di {isEditMode ? "edit" : "buat"}.
+            Isi detail kelas dan pilih periode tahun ajaran.
           </DialogDescription>
         </DialogHeader>
+
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
               name="nama"
@@ -122,20 +126,42 @@ export default function ClassForm({
                 <FormItem>
                   <FormLabel>Nama Kelas</FormLabel>
                   <FormControl>
-                    <Input
-                      type="text"
-                      placeholder="Masukkan nama kelas..."
-                      {...field}
-                    />
+                    <Input placeholder="Contoh: 10PPLG1" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <DialogFooter className="flex justify-end pt-2">
-              <Button type="submit" disabled={mutation.isPending}>
-                {mutation.isPending && <Spinner />}
-                {mutation.isPending ? "Menyimpan..." : "Simpan"}
+
+            <FormField
+              control={form.control}
+              name="periodeId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Periode</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih Periode" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {periods?.data?.map((p: any) => (
+                        <SelectItem key={p.id} value={String(p.id)}>
+                          {p.nama}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <DialogFooter className="pt-4">
+              <Button type="submit" disabled={mutation.isPending} className="w-full">
+                {mutation.isPending ? <Spinner className="mr-2" /> : null}
+                {isEditMode ? "Simpan Perubahan" : "Tambah Kelas"}
               </Button>
             </DialogFooter>
           </form>
