@@ -3,7 +3,7 @@ import { use } from "react";
 
 type UserPayload = {
     username: string;
-    password: string;
+    password?: string;
     role: string
 }
 
