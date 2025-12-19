@@ -7,13 +7,18 @@ import {
   FlaskConical,
   IdCard,
   LayoutDashboard,
+  Users,
   X,
+  LogOut,
+  User,
+  ArrowLeft,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
+import { cn } from "@/lib/utils";
 
 export default function Sidebar({
   isOpenSidebar,
@@ -24,7 +29,7 @@ export default function Sidebar({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { logout } = useAuthStore();
+  const { logout, user } = useAuthStore();
   const isDesktop = useIsDesktop();
 
   const handleLogout = () => {
@@ -39,15 +44,16 @@ export default function Sidebar({
     { href: "/dashboard/classes", label: "Data Kelas", icon: Book },
     { href: "/dashboard/labs", label: "Data Lab", icon: FlaskConical },
     { href: "/dashboard/cards", label: "Data Kartu", icon: IdCard },
+    { href: "/dashboard/users", label: "Data User", icon: Users },
   ];
 
   return (
     <>
-      {/* OVERLAY (ONLY MOBILE) */}
+      {/* OVERLAY – MOBILE */}
       <AnimatePresence>
         {!isDesktop && isOpenSidebar && (
           <motion.div
-            className="fixed inset-0 bg-black/40 z-1000"
+            className="fixed inset-0 bg-black/40 z-40"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -57,91 +63,120 @@ export default function Sidebar({
       </AnimatePresence>
 
       {/* SIDEBAR */}
-      <motion.nav
+      <motion.aside
         initial={false}
         animate={{
           x: isDesktop ? 0 : isOpenSidebar ? 0 : -300,
         }}
         transition={{ type: "spring", stiffness: 260, damping: 30 }}
         className="
-    fixed top-4 left-4 z-1000
-    h-[calc(100vh-2rem)]
-    w-[250px]
-    bg-white
-    rounded-3xl
-    shadow-2xl
-    p-5
-    flex flex-col
-  "
+          fixed top-4 left-4 z-50
+          h-[calc(100vh-2rem)]
+          w-[260px]
+          bg-white
+          rounded-3xl
+          shadow-xl
+          flex flex-col
+          border border-gray-100
+        "
       >
-        {/* CLOSE (MOBILE ONLY) */}
+        {/* CLOSE – MOBILE */}
         {!isDesktop && (
           <button
             onClick={() => setIsOpenSidebar(false)}
-            className="absolute top-4 right-4"
+            className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
           >
-            <X className="w-5 h-5 text-gray-500" />
+            <X className="w-5 h-5" />
           </button>
         )}
 
-        {/* HEADER (FIXED) */}
-        <div className="mb-6 text-center pt-2 shrink-0">
+        {/* HEADER */}
+        <div className="px-6 pt-6 pb-4 text-center shrink-0">
           <Image
             src="/img/smkn1katapang.webp"
             alt="Logo"
-            width={500}
-            height={500}
-            className="mx-auto w-16 mb-2"
+            width={80}
+            height={80}
+            className="mx-auto mb-3"
           />
-          <h3 className="text-sm font-bold text-gray-800 tracking-wide">
+          <h3 className="text-sm font-bold tracking-wide text-gray-800">
             SISTEM AKSES LAB
           </h3>
-          <span className="text-xs text-gray-400 font-medium">
-            SMKN 1 Katapang
-          </span>
+          <p className="text-xs text-gray-400">SMKN 1 Katapang</p>
         </div>
 
-        {/* MENU (SCROLL AREA) */}
-        <ul
-          className="
-      flex-1
-      space-y-2
-      overflow-y-auto
-      pr-1
-    "
-        >
-          {menuItems.map((item) => {
-            const isActive = pathname === item.href;
-
-            return (
-              <li key={item.href}>
+        {/* MENU */}
+        <nav className="flex-1 overflow-y-auto px-3 py-2">
+          <ul className="space-y-1">
+            {pathname === "/dashboard/my-profile" ? (
+              <li>
                 <Link
-                  href={item.href}
+                  href={"/dashboard"}
                   onClick={() => !isDesktop && setIsOpenSidebar(false)}
-                  className={`flex items-center px-4 py-3 rounded-xl text-sm transition-all ${
-                    isActive
-                      ? "bg-[#cceadd] text-[#2c3e50] font-bold shadow-sm translate-x-1"
-                      : "text-gray-500 hover:bg-gray-50 hover:text-gray-700 hover:translate-x-1"
-                  }`}
+                  className={cn(
+                    "group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all"
+                  )}
                 >
-                  <item.icon className="w-[22px] mr-4" />
-                  {item.label}
+                  <ArrowLeft className={cn("w-5 h-5 transition-colors")} />
+                  <span className="truncate">Kembali ke dashboard</span>
                 </Link>
               </li>
-            );
-          })}
-        </ul>
+            ) : (
+              <>
+                {menuItems.map((item) => {
+                  const isActive = pathname === item.href;
 
-        {/* LOGOUT (FIXED) */}
-        <div className="pt-4 mt-4 border-t border-gray-100 shrink-0">
+                  return (
+                    <li key={item.href}>
+                      <Link
+                        href={item.href}
+                        onClick={() => !isDesktop && setIsOpenSidebar(false)}
+                        className={cn(
+                          "group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all",
+                          isActive
+                            ? "bg-emerald-100 text-emerald-800 shadow-sm"
+                            : "text-gray-600 hover:bg-gray-50 hover:text-gray-800"
+                        )}
+                      >
+                        <item.icon
+                          className={cn(
+                            "w-5 h-5 transition-colors",
+                            isActive
+                              ? "text-emerald-700"
+                              : "text-gray-400 group-hover:text-gray-600"
+                          )}
+                        />
+                        <span className="truncate">{item.label}</span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </>
+            )}
+          </ul>
+        </nav>
+
+        {/* LOGOUT */}
+        {/* <div className="px-4 pb-4 pt-3 border-t border-gray-100 shrink-0">
           <button
             onClick={handleLogout}
-            className="w-full px-4 py-3 text-[#e74c3c] font-bold hover:bg-red-50 rounded-xl"
+            className="
+              flex w-full items-center gap-3
+              rounded-xl px-4 py-3
+              text-sm font-semibold text-red-600
+              hover:bg-red-50 transition
+            "
           >
+            <LogOut className="w-5 h-5" />
             Logout
           </button>
+        </div> */}
+
+        <div className="pt-4 mt-4 mb-2 border-t border-gray-100 text-center text-[11px] text-gray-400">
+          <p>© {new Date().getFullYear()} SMKN 1 Katapang</p>
+          <p className="mt-0.5">Build v1.0.0</p>
         </div>
-      </motion.nav>
+      </motion.aside>
     </>
   );
 }
