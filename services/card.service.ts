@@ -50,5 +50,4 @@ export const cardService = {
   getById,
   update,
   deleteById,
-  cardCheck,
 };

@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, RefreshCw, Wifi } from "lucide-react"; // Tambahkan Icon
 import { userService } from "@/services/user.service";
 import { classService } from "@/services/class.service";
 import { cardService } from "@/services/card.service";
+import { scanService } from "@/services/scan.service";
 import { toast } from "sonner";
 
 interface CardFormDialogProps {
@@ -21,18 +22,24 @@ interface CardFormDialogProps {
 
 export default function CardFormDialog({ open, onClose, onSuccess, initialData }: CardFormDialogProps) {
   const [loading, setLoading] = useState(false);
+  
+  // State Polling
+  const [isScanning, setIsScanning] = useState(false);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const lastUidRef = useRef<string>("");
+
   const [users, setUsers] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
-  
-  // State Form Sederhana
+
+  // State Form
   const [uid, setUid] = useState("");
   const [status, setStatus] = useState("AKTIF");
   const [keterangan, setKeterangan] = useState("");
-  const [ownerType, setOwnerType] = useState("none"); // none, user, class
+  const [ownerType, setOwnerType] = useState("none"); 
   const [selectedUserId, setSelectedUserId] = useState("0");
   const [selectedClassId, setSelectedClassId] = useState("0");
 
-  // 1. Load Data User & Kelas saat modal dibuka
+  // 1. Load Data User & Kelas
   useEffect(() => {
     if (open) {
       const loadOptions = async () => {
@@ -45,18 +52,20 @@ export default function CardFormDialog({ open, onClose, onSuccess, initialData }
         }
       };
       loadOptions();
+      
+      // Reset ref polling saat modal dibuka
+      lastUidRef.current = "";
     }
+
+    return () => stopPolling();
   }, [open]);
 
-  // 2. Set Nilai Awal Form (Reset atau Isi dari Edit)
   useEffect(() => {
     if (open) {
       if (initialData) {
         setUid(initialData.uid);
         setStatus(initialData.status);
         setKeterangan(initialData.keterangan || "");
-        
-        // Deteksi Owner Type
         if (initialData.userId && initialData.userId !== 0) {
           setOwnerType("user");
           setSelectedUserId(String(initialData.userId));
@@ -71,7 +80,7 @@ export default function CardFormDialog({ open, onClose, onSuccess, initialData }
           setSelectedClassId("0");
         }
       } else {
-        // Mode Tambah: Reset Form
+      
         setUid("");
         setStatus("AKTIF");
         setKeterangan("");
@@ -82,13 +91,49 @@ export default function CardFormDialog({ open, onClose, onSuccess, initialData }
     }
   }, [open, initialData]);
 
-  // 3. Handle Submit
+  const startPolling = () => {
+    if (pollingRef.current) return;
+    
+    setIsScanning(true);
+    toast.info("Mencari data kartu terbaru dari server...");
+
+    // Cek setiap 1.5 detik
+    pollingRef.current = setInterval(async () => {
+        try {
+            const res = await scanService.getLatest();
+            if (res.success && res.data && res.data.uid) {
+                const serverUid = res.data.uid;
+
+                // Jika UID dari server BEDA dengan yg terakhir kita tahu
+                // Berarti ada kartu baru masuk!
+                if (serverUid !== lastUidRef.current && serverUid !== uid) {
+                    setUid(serverUid);
+                    lastUidRef.current = serverUid;
+                    
+                    toast.success(`Kartu ditemukan: ${serverUid}`);
+                    stopPolling(); // Stop polling kalau sudah dapat
+                }
+            }
+        } catch (error) {
+            // Silent error biar ga spam console
+        }
+    }, 1500);
+  };
+
+  const stopPolling = () => {
+    if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+    }
+    setIsScanning(false);
+  };
+  // --------------------------------------------------
+
+  // Handle Submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    // Siapkan Payload
-    // PERBAIKAN: Menggunakan null jika tipe tidak cocok atau ID masih "0"
     const payload = {
       uid,
       status,
@@ -99,19 +144,27 @@ export default function CardFormDialog({ open, onClose, onSuccess, initialData }
 
     try {
       let res;
+
       if (initialData?.id) {
+        // Mode Edit: Update by ID
         res = await cardService.update(initialData.id, payload);
       } else {
+        // Mode Baru: Create
+        // CATATAN: Karena Microcontroller mungkin SUDAH membuat kartu ini (dengan UID yg sama),
+        // idealnya Backend "Create" kamu harus support Upsert (Update jika UID sudah ada).
+        // Jika Backend menolak duplikat UID, kamu perlu endpoint khusus updateByUid 
+        // atau pastikan CardController menangani duplikat.
         res = await cardService.create(payload);
-      }                                               
+      }
 
       if (res.success) {
-        toast.success(initialData ? "Kartu diperbarui" : "Kartu berhasil ditambahkan");
-        onSuccess(); // Refresh tabel
-        onClose();   // Tutup modal
+        toast.success(initialData ? "Kartu diperbarui" : "Kartu berhasil disimpan");
+        onSuccess();
+        onClose();
       } else {
         toast.error(res.message || "Gagal menyimpan data");
       }
+
     } catch (error: any) {
       console.error(error);
       toast.error(error?.response?.data?.message || "Terjadi kesalahan server");
@@ -121,21 +174,48 @@ export default function CardFormDialog({ open, onClose, onSuccess, initialData }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={(v) => { if(!v) stopPolling(); onClose(); }}>
       <DialogContent className="sm:max-w-[500px] overflow-visible">
         <DialogHeader>
-          <DialogTitle>{initialData ? "Edit Kartu" : "Tambah Kartu Baru"}</DialogTitle>
+          <DialogTitle>{initialData ? "Edit Kartu" : "Registrasi Kartu Baru"}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid gap-2">
             <Label>UID Kartu</Label>
-            <Input 
-              value={uid} 
-              onChange={(e) => setUid(e.target.value)}
-              placeholder="Tempelkan kartu ke reader..." 
-              required 
-            />
+            <div className="flex gap-2">
+                <Input
+                  value={uid}
+                  onChange={(e) => setUid(e.target.value)}
+                  placeholder="Scan kartu..."
+                  required
+                  readOnly={!!initialData} // Readonly jika edit
+                  className={!!initialData ? "bg-gray-100" : ""}
+                />
+                
+                {/* Tombol Polling (Hanya muncul saat Tambah Baru) */}
+                {!initialData && (
+                    <Button 
+                        type="button"
+                        variant={isScanning ? "destructive" : "secondary"}
+                        onClick={isScanning ? stopPolling : startPolling}
+                        className="min-w-[120px]"
+                    >
+                        {isScanning ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Wifi className="w-4 h-4 mr-2" />}
+                        {isScanning ? "Stop" : "Cek Server"}
+                    </Button>
+                )}
+            </div>
+            {isScanning && (
+                <p className="text-xs text-blue-600 animate-pulse">
+                    Menunggu kartu di-tap pada alat...
+                </p>
+            )}
+            {!initialData && !isScanning && (
+                <p className="text-[10px] text-gray-500">
+                    Klik <b>"Cek Server"</b>, lalu tap kartu di alat untuk otomatis mengisi UID.
+                </p>
+            )}
           </div>
 
           <div className="grid gap-2">
@@ -154,30 +234,15 @@ export default function CardFormDialog({ open, onClose, onSuccess, initialData }
             <Label>Jenis Pemilik</Label>
             <div className="flex gap-4">
                <label className="flex items-center gap-2 text-sm cursor-pointer">
-                 <input 
-                   type="radio" 
-                   name="otype" 
-                   checked={ownerType === 'none'} 
-                   onChange={() => setOwnerType('none')} 
-                 />
+                 <input type="radio" name="otype" checked={ownerType === 'none'} onChange={() => setOwnerType('none')} />
                  Tidak Ada
                </label>
                <label className="flex items-center gap-2 text-sm cursor-pointer">
-                 <input 
-                   type="radio" 
-                   name="otype" 
-                   checked={ownerType === 'user'} 
-                   onChange={() => setOwnerType('user')} 
-                 />
+                 <input type="radio" name="otype" checked={ownerType === 'user'} onChange={() => setOwnerType('user')} />
                  User
                </label>
                <label className="flex items-center gap-2 text-sm cursor-pointer">
-                 <input 
-                   type="radio" 
-                   name="otype" 
-                   checked={ownerType === 'class'} 
-                   onChange={() => setOwnerType('class')} 
-                 />
+                 <input type="radio" name="otype" checked={ownerType === 'class'} onChange={() => setOwnerType('class')} />
                  Kelas
                </label>
             </div>
@@ -217,10 +282,10 @@ export default function CardFormDialog({ open, onClose, onSuccess, initialData }
 
           <div className="grid gap-2">
             <Label>Keterangan</Label>
-            <Input 
-              value={keterangan} 
+            <Input
+              value={keterangan}
               onChange={(e) => setKeterangan(e.target.value)}
-              placeholder="Opsional" 
+              placeholder="Opsional"
             />
           </div>
 
@@ -228,7 +293,7 @@ export default function CardFormDialog({ open, onClose, onSuccess, initialData }
             <Button type="button" variant="outline" onClick={onClose}>Batal</Button>
             <Button type="submit" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Simpan
+              {initialData ? "Simpan Perubahan" : "Simpan Kartu"}
             </Button>
           </div>
         </form>
