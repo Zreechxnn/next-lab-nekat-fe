@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useLocalPagination } from "@/hooks/useLocalPagination";
@@ -10,7 +9,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { AxiosError } from "axios";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react"; // Tambah useRef
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,8 +36,13 @@ import { IdCard, Edit, Plus, Trash, User, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import CardFormDialog from "./_components/CardFormDialog";
 
+// IMPORT SIGNALR
+import { createSignalRConnection } from "@/lib/signalr";
+import { HubConnection, HubConnectionState } from "@microsoft/signalr";
+
 export default function CardsPage() {
   const queryClient = useQueryClient();
+  const connectionRef = useRef<HubConnection | null>(null); // Ref untuk koneksi
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCard, setSelectedCard] = useState(null);
@@ -50,9 +54,45 @@ export default function CardsPage() {
     placeholderData: keepPreviousData,
   });
 
+  // 1. Setup SignalR Effect
+  useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    if (!token) return;
+
+    // Buat koneksi
+    const connection = createSignalRConnection(token);
+    connectionRef.current = connection;
+
+    const startSignalR = async () => {
+      if (connection.state === HubConnectionState.Disconnected) {
+        try {
+          await connection.start();
+          
+          // PASTIKAN NAMA EVENT SAMA DENGAN DI BACKEND .NET (Hub)
+          // Contoh: Jika backend mengirim "ReceiveCardUpdate" saat ada perubahan
+          connection.on("ReceiveCardUpdate", () => {
+            // Refresh data otomatis lewat React Query
+            queryClient.invalidateQueries({ queryKey: ["cards"] });
+            toast.info("Data kartu diperbarui real-time.");
+          });
+
+        } catch (e) {
+          console.error("SignalR Error", e);
+        }
+      }
+    };
+
+    // Delay sedikit untuk memastikan mounting aman
+    setTimeout(startSignalR, 1000);
+
+    return () => {
+      if (connection) connection.stop().catch(() => {});
+    };
+  }, [queryClient]);
+
   useEffect(() => {
     const setFilteredDataEffect = async (data: any) => {
-      const rawData = data.data || data; 
+      const rawData = data.data || data;
       setFilteredData(Array.isArray(rawData) ? rawData : []);
     };
 
@@ -106,12 +146,12 @@ export default function CardsPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      {/* ... (SISA KODE UI SAMA PERSIS SEPERTI SEBELUMNYA) ... */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
-        
-        {/* Header Section */}
+
         <div className="px-6 py-5 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-            <IdCard /> 
+            <IdCard />
             Daftar Kartu RFID
           </h3>
           <div className="flex gap-2">
@@ -172,7 +212,6 @@ export default function CardsPage() {
                       {(currentPage - 1) * limit + idx + 1}
                     </TableCell>
 
-                    {/* UID Style Updated */}
                     <TableCell className="font-mono font-bold text-red-500 text-xs md:text-sm">
                       {item.uid ? item.uid.split(":").join(" : ") : "-"}
                     </TableCell>
@@ -217,7 +256,7 @@ export default function CardsPage() {
                       >
                         <Edit className="w-4 h-4" />
                       </Button>
-                      
+
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button
