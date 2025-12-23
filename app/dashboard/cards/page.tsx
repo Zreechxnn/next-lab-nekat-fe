@@ -9,7 +9,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { AxiosError } from "axios";
-import { useEffect, useState, useRef } from "react"; // Tambah useRef
+import { useEffect, useState, useRef } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,25 +36,28 @@ import { IdCard, Edit, Plus, Trash, User, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import CardFormDialog from "./_components/CardFormDialog";
 
-// IMPORT SIGNALR
+// --- IMPORTS SIGNALR ---
 import { createSignalRConnection } from "@/lib/signalr";
 import { HubConnection, HubConnectionState } from "@microsoft/signalr";
 
 export default function CardsPage() {
   const queryClient = useQueryClient();
-  const connectionRef = useRef<HubConnection | null>(null); // Ref untuk koneksi
+  
+  // Ref untuk koneksi SignalR
+  const connectionRef = useRef<HubConnection | null>(null);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCard, setSelectedCard] = useState(null);
   const [filteredData, setFilteredData] = useState<any[]>([]);
 
+  // 1. Fetch Data Utama
   const { data, isLoading } = useQuery({
     queryKey: ["cards"],
     queryFn: () => cardService.getAll(),
     placeholderData: keepPreviousData,
   });
 
-  // 1. Setup SignalR Effect
+  // 2. Setup SignalR Listeners (Solusi Warning Log)
   useEffect(() => {
     const token = localStorage.getItem("authToken");
     if (!token) return;
@@ -68,31 +71,68 @@ export default function CardsPage() {
         try {
           await connection.start();
           
-          // PASTIKAN NAMA EVENT SAMA DENGAN DI BACKEND .NET (Hub)
-          // Contoh: Jika backend mengirim "ReceiveCardUpdate" saat ada perubahan
+          // Fungsi helper untuk refresh tabel
+          const refreshData = () => {
+             queryClient.invalidateQueries({ queryKey: ["cards"] });
+          };
+
+          // --- REGISTER EVENT LISTENERS SESUAI LOG WARNING ---
+          
+          // a. Saat ada registrasi kartu baru
+          connection.on("receivecardregistration", () => {
+             refreshData();
+             toast.success("Kartu baru berhasil didaftarkan via alat!");
+          });
+
+          // b. Saat kartu dihapus
+          connection.on("kartudihapus", () => {
+             refreshData();
+             toast.info("Data kartu telah dihapus.");
+          });
+
+          // c. Notifikasi umum terkait kartu (tap/scan)
+          connection.on("kartunotification", (msg) => {
+             if (typeof msg === 'string') toast.info(msg);
+             refreshData();
+          });
+
+          // d. Status user berubah (berpengaruh ke kepemilikan kartu)
+          connection.on("userstatuschanged", () => {
+             refreshData();
+          });
+
+          // e. Update data kartu (Event standar)
           connection.on("ReceiveCardUpdate", () => {
-            // Refresh data otomatis lewat React Query
-            queryClient.invalidateQueries({ queryKey: ["cards"] });
-            toast.info("Data kartu diperbarui real-time.");
+             refreshData();
           });
 
         } catch (e) {
-          console.error("SignalR Error", e);
+          console.error("SignalR Connection Error:", e);
         }
       }
     };
 
-    // Delay sedikit untuk memastikan mounting aman
-    setTimeout(startSignalR, 1000);
+    // Delay sedikit untuk memastikan komponen mount sempurna
+    const timer = setTimeout(startSignalR, 1000);
 
+    // Cleanup saat unmount
     return () => {
-      if (connection) connection.stop().catch(() => {});
+      clearTimeout(timer);
+      if (connection) {
+        connection.off("receivecardregistration");
+        connection.off("kartudihapus");
+        connection.off("kartunotification");
+        connection.off("userstatuschanged");
+        connection.off("ReceiveCardUpdate");
+        connection.stop().catch(() => {});
+      }
     };
   }, [queryClient]);
 
+  // 3. Sinkronisasi Data Query ke State Lokal (untuk Pagination)
   useEffect(() => {
     const setFilteredDataEffect = async (data: any) => {
-      const rawData = data.data || data;
+      const rawData = data?.data || data;
       setFilteredData(Array.isArray(rawData) ? rawData : []);
     };
 
@@ -101,6 +141,7 @@ export default function CardsPage() {
     }
   }, [data]);
 
+  // 4. Setup Pagination Lokal
   const pagination = useLocalPagination({
     initialData: filteredData,
     itemsPerPage: 15,
@@ -113,6 +154,7 @@ export default function CardsPage() {
     limit,
   } = pagination;
 
+  // 5. Setup Delete Mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => cardService.deleteById(id),
     onSuccess: () => {
@@ -128,6 +170,7 @@ export default function CardsPage() {
     },
   });
 
+  // --- Handlers ---
   const createHandler = () => {
     setSelectedCard(null);
     setIsModalOpen(true);
@@ -145,35 +188,36 @@ export default function CardsPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* ... (SISA KODE UI SAMA PERSIS SEPERTI SEBELUMNYA) ... */}
+    <div className="flex flex-col gap-6 font-sans">
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
 
+        {/* Header Section */}
         <div className="px-6 py-5 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-            <IdCard />
+            <IdCard className="text-indigo-600" />
             Daftar Kartu RFID
           </h3>
           <div className="flex gap-2">
             <Button
               onClick={createHandler}
-              className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-50 transition flex items-center gap-2 shadow-sm"
+              className="px-4 py-2 bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-lg text-sm font-semibold hover:bg-indigo-100 transition flex items-center gap-2 shadow-sm"
             >
-              <Plus />
+              <Plus size={16} />
               Tambah Kartu
             </Button>
           </div>
         </div>
 
+        {/* Table Section */}
         <Table className="min-w-[800px]">
           <TableHeader>
-            <TableRow>
-              <TableHead className="w-16 text-center">NO</TableHead>
-              <TableHead>UID KARTU</TableHead>
-              <TableHead>PEMILIK</TableHead>
-              <TableHead>STATUS</TableHead>
-              <TableHead>KETERANGAN</TableHead>
-              <TableHead className="text-center" colSpan={2}>
+            <TableRow className="bg-gray-50/50">
+              <TableHead className="w-16 text-center font-bold text-gray-600">NO</TableHead>
+              <TableHead className="font-bold text-gray-600">UID KARTU</TableHead>
+              <TableHead className="font-bold text-gray-600">PEMILIK</TableHead>
+              <TableHead className="font-bold text-gray-600">STATUS</TableHead>
+              <TableHead className="font-bold text-gray-600">KETERANGAN</TableHead>
+              <TableHead className="text-center font-bold text-gray-600" colSpan={2}>
                 AKSI
               </TableHead>
             </TableRow>
@@ -184,9 +228,9 @@ export default function CardsPage() {
               <TableRow>
                 <TableCell
                   colSpan={6}
-                  className="py-10 text-center text-muted-foreground"
+                  className="py-10 text-center text-muted-foreground animate-pulse"
                 >
-                  Memuat data...
+                  Sedang memuat data kartu...
                 </TableCell>
               </TableRow>
             ) : filteredData.length === 0 ? (
@@ -195,7 +239,7 @@ export default function CardsPage() {
                   colSpan={6}
                   className="py-10 text-center text-muted-foreground"
                 >
-                  Tidak ada data ditemukan
+                  Tidak ada data kartu ditemukan
                 </TableCell>
               </TableRow>
             ) : (
@@ -206,27 +250,29 @@ export default function CardsPage() {
                 return (
                   <TableRow
                     key={item.id}
-                    className="hover:bg-muted/40 transition-colors"
+                    className="hover:bg-indigo-50/30 transition-colors border-b border-gray-50"
                   >
-                    <TableCell className="text-center font-medium text-muted-foreground">
+                    <TableCell className="text-center font-medium text-gray-500">
                       {(currentPage - 1) * limit + idx + 1}
                     </TableCell>
 
-                    <TableCell className="font-mono font-bold text-red-500 text-xs md:text-sm">
+                    <TableCell className="font-mono font-bold text-indigo-600 text-xs md:text-sm tracking-wide">
                       {item.uid ? item.uid.split(":").join(" : ") : "-"}
                     </TableCell>
 
                     <TableCell>
                       {userName ? (
-                        <div className="flex items-center gap-2 text-blue-700 bg-blue-50 w-fit px-2 py-1 rounded-md text-xs font-medium">
+                        <div className="flex items-center gap-2 text-blue-700 bg-blue-50 w-fit px-2 py-1 rounded-md text-xs font-semibold border border-blue-100">
                           <User size={12} /> {userName}
                         </div>
                       ) : className ? (
-                        <div className="flex items-center gap-2 text-purple-700 bg-purple-50 w-fit px-2 py-1 rounded-md text-xs font-medium">
+                        <div className="flex items-center gap-2 text-purple-700 bg-purple-50 w-fit px-2 py-1 rounded-md text-xs font-semibold border border-purple-100">
                           <Users size={12} /> {className}
                         </div>
                       ) : (
-                        <span className="text-gray-400 text-xs italic">-</span>
+                        <span className="text-gray-400 text-xs italic flex items-center gap-1">
+                           - Tidak Ada -
+                        </span>
                       )}
                     </TableCell>
 
@@ -234,62 +280,65 @@ export default function CardsPage() {
                       <Badge
                         variant="outline"
                         className={`
-                            border-0 font-medium
-                            ${item.status === 'AKTIF' ? 'bg-emerald-100 text-emerald-700' : ''}
-                            ${item.status === 'NONAKTIF' ? 'bg-gray-100 text-gray-600' : ''}
-                            ${item.status === 'HILANG' ? 'bg-red-100 text-red-600' : ''}
+                            border-0 font-bold px-2.5 py-0.5
+                            ${item.status === 'AKTIF' ? 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200' : ''}
+                            ${item.status === 'NONAKTIF' ? 'bg-gray-100 text-gray-600 ring-1 ring-gray-200' : ''}
+                            ${item.status === 'BLOCKED' ? 'bg-red-100 text-red-700 ring-1 ring-red-200' : ''}
+                            ${item.status === 'HILANG' ? 'bg-orange-100 text-orange-700 ring-1 ring-orange-200' : ''}
                         `}
                       >
                         {item.status}
                       </Badge>
                     </TableCell>
 
-                    <TableCell className="text-sm text-gray-600">
+                    <TableCell className="text-sm text-gray-600 italic">
                       {item.keterangan || "-"}
                     </TableCell>
 
-                    <TableCell colSpan={2} className="text-center space-x-2">
-                      <Button
-                        variant={"outline"}
-                        size="sm"
-                        onClick={() => editHandler(item)}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant="destructive"
-                            size="icon"
-                            className="h-8 w-8"
-                          >
-                            <Trash className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>
-                              Apakah Anda Yakin?
-                            </AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Aksi ini tidak dapat dibatalkan. Data kartu yang sudah
-                              dihapus tidak akan bisa dikembalikan lagi.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Batal</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => handleDelete(item.id)}
-                              className="bg-red-500 hover:bg-red-600"
+                    <TableCell colSpan={2} className="text-center">
+                        <div className="flex justify-center items-center gap-2">
+                            <Button
+                                variant={"ghost"}
+                                size="sm"
+                                className="h-8 w-8 p-0 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
+                                onClick={() => editHandler(item)}
                             >
-                              Hapus
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                                <Edit size={16} />
+                            </Button>
+
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                >
+                                    <Trash size={16} />
+                                </Button>
+                                </AlertDialogTrigger>
+
+                                <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle className="text-red-600">
+                                    Hapus Kartu Permanen?
+                                    </AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                    Tindakan ini tidak dapat dibatalkan. Kartu dengan UID <span className="font-mono font-bold">{item.uid}</span> akan dihapus dari database.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Batal</AlertDialogCancel>
+                                    <AlertDialogAction
+                                    onClick={() => handleDelete(item.id)}
+                                    className="bg-red-600 hover:bg-red-700 text-white"
+                                    >
+                                    Ya, Hapus
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </div>
                     </TableCell>
                   </TableRow>
                 );
