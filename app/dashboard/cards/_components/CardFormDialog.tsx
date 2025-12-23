@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, RefreshCw, Wifi } from "lucide-react"; // Tambahkan Icon
+import { Loader2, RefreshCw, Wifi } from "lucide-react";
 import { userService } from "@/services/user.service";
 import { classService } from "@/services/class.service";
 import { cardService } from "@/services/card.service";
@@ -22,7 +22,7 @@ interface CardFormDialogProps {
 
 export default function CardFormDialog({ open, onClose, onSuccess, initialData }: CardFormDialogProps) {
   const [loading, setLoading] = useState(false);
-  
+
   // State Polling
   const [isScanning, setIsScanning] = useState(false);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
@@ -35,7 +35,7 @@ export default function CardFormDialog({ open, onClose, onSuccess, initialData }
   const [uid, setUid] = useState("");
   const [status, setStatus] = useState("AKTIF");
   const [keterangan, setKeterangan] = useState("");
-  const [ownerType, setOwnerType] = useState("none"); 
+  const [ownerType, setOwnerType] = useState("none");
   const [selectedUserId, setSelectedUserId] = useState("0");
   const [selectedClassId, setSelectedClassId] = useState("0");
 
@@ -52,7 +52,7 @@ export default function CardFormDialog({ open, onClose, onSuccess, initialData }
         }
       };
       loadOptions();
-      
+
       // Reset ref polling saat modal dibuka
       lastUidRef.current = "";
     }
@@ -60,12 +60,14 @@ export default function CardFormDialog({ open, onClose, onSuccess, initialData }
     return () => stopPolling();
   }, [open]);
 
+  // 2. Set Initial Data (Mode Edit)
   useEffect(() => {
     if (open) {
       if (initialData) {
         setUid(initialData.uid);
         setStatus(initialData.status);
         setKeterangan(initialData.keterangan || "");
+
         if (initialData.userId && initialData.userId !== 0) {
           setOwnerType("user");
           setSelectedUserId(String(initialData.userId));
@@ -80,7 +82,7 @@ export default function CardFormDialog({ open, onClose, onSuccess, initialData }
           setSelectedClassId("0");
         }
       } else {
-      
+        // Mode Tambah Baru (Reset Form)
         setUid("");
         setStatus("AKTIF");
         setKeterangan("");
@@ -93,41 +95,39 @@ export default function CardFormDialog({ open, onClose, onSuccess, initialData }
 
   const startPolling = () => {
     if (pollingRef.current) return;
-    
+
     setIsScanning(true);
     toast.info("Mencari data kartu terbaru dari server...");
 
     // Cek setiap 1.5 detik
     pollingRef.current = setInterval(async () => {
-        try {
-            const res = await scanService.getLatest();
-            if (res.success && res.data && res.data.uid) {
-                const serverUid = res.data.uid;
+      try {
+        const res = await scanService.getLatest();
+        if (res.success && res.data && res.data.uid) {
+          const serverUid = res.data.uid;
 
-                // Jika UID dari server BEDA dengan yg terakhir kita tahu
-                // Berarti ada kartu baru masuk!
-                if (serverUid !== lastUidRef.current && serverUid !== uid) {
-                    setUid(serverUid);
-                    lastUidRef.current = serverUid;
-                    
-                    toast.success(`Kartu ditemukan: ${serverUid}`);
-                    stopPolling(); // Stop polling kalau sudah dapat
-                }
-            }
-        } catch (error) {
-            // Silent error biar ga spam console
+          // Jika UID dari server BEDA dengan yg terakhir kita tahu
+          if (serverUid !== lastUidRef.current && serverUid !== uid) {
+            setUid(serverUid);
+            lastUidRef.current = serverUid;
+
+            toast.success(`Kartu ditemukan: ${serverUid}`);
+            stopPolling();
+          }
         }
+      } catch (error) {
+        // Silent error
+      }
     }, 1500);
   };
 
   const stopPolling = () => {
     if (pollingRef.current) {
-        clearInterval(pollingRef.current);
-        pollingRef.current = null;
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
     }
     setIsScanning(false);
   };
-  // --------------------------------------------------
 
   // Handle Submit
   const handleSubmit = async (e: React.FormEvent) => {
@@ -149,11 +149,7 @@ export default function CardFormDialog({ open, onClose, onSuccess, initialData }
         // Mode Edit: Update by ID
         res = await cardService.update(initialData.id, payload);
       } else {
-        // Mode Baru: Create
-        // CATATAN: Karena Microcontroller mungkin SUDAH membuat kartu ini (dengan UID yg sama),
-        // idealnya Backend "Create" kamu harus support Upsert (Update jika UID sudah ada).
-        // Jika Backend menolak duplikat UID, kamu perlu endpoint khusus updateByUid 
-        // atau pastikan CardController menangani duplikat.
+        // Mode Create
         res = await cardService.create(payload);
       }
 
@@ -174,7 +170,7 @@ export default function CardFormDialog({ open, onClose, onSuccess, initialData }
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if(!v) stopPolling(); onClose(); }}>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) stopPolling(); onClose(); }}>
       <DialogContent className="sm:max-w-[500px] overflow-visible">
         <DialogHeader>
           <DialogTitle>{initialData ? "Edit Kartu" : "Registrasi Kartu Baru"}</DialogTitle>
@@ -184,37 +180,37 @@ export default function CardFormDialog({ open, onClose, onSuccess, initialData }
           <div className="grid gap-2">
             <Label>UID Kartu</Label>
             <div className="flex gap-2">
-                <Input
-                  value={uid}
-                  onChange={(e) => setUid(e.target.value)}
-                  placeholder="Scan kartu..."
-                  required
-                  readOnly={!!initialData} // Readonly jika edit
-                  className={!!initialData ? "bg-gray-100" : ""}
-                />
-                
-                {/* Tombol Polling (Hanya muncul saat Tambah Baru) */}
-                {!initialData && (
-                    <Button 
-                        type="button"
-                        variant={isScanning ? "destructive" : "secondary"}
-                        onClick={isScanning ? stopPolling : startPolling}
-                        className="min-w-[120px]"
-                    >
-                        {isScanning ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Wifi className="w-4 h-4 mr-2" />}
-                        {isScanning ? "Stop" : "Cek Server"}
-                    </Button>
-                )}
+              {/* PERUBAHAN DISINI:
+                   1. Menghapus properti readOnly={!!initialData}
+                   2. Menghapus className background gray 
+                */}
+              <Input
+                value={uid}
+                onChange={(e) => setUid(e.target.value)}
+                placeholder="Scan kartu atau ketik manual..."
+                required
+              />
+
+              {/* Tombol Scan tetap ada untuk opsional */}
+              <Button
+                type="button"
+                variant={isScanning ? "destructive" : "secondary"}
+                onClick={isScanning ? stopPolling : startPolling}
+                className="min-w-[120px]"
+              >
+                {isScanning ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Wifi className="w-4 h-4 mr-2" />}
+                {isScanning ? "Stop" : "Scan Alat"}
+              </Button>
             </div>
             {isScanning && (
-                <p className="text-xs text-blue-600 animate-pulse">
-                    Menunggu kartu di-tap pada alat...
-                </p>
+              <p className="text-xs text-blue-600 animate-pulse">
+                Menunggu kartu di-tap pada alat...
+              </p>
             )}
-            {!initialData && !isScanning && (
-                <p className="text-[10px] text-gray-500">
-                    Klik <b>"Cek Server"</b>, lalu tap kartu di alat untuk otomatis mengisi UID.
-                </p>
+            {!isScanning && (
+              <p className="text-[10px] text-gray-500">
+                Anda bisa mengetik UID secara manual atau menggunakan tombol <b>"Scan Alat"</b> untuk mengisi otomatis.
+              </p>
             )}
           </div>
 
@@ -233,50 +229,50 @@ export default function CardFormDialog({ open, onClose, onSuccess, initialData }
           <div className="grid gap-2">
             <Label>Jenis Pemilik</Label>
             <div className="flex gap-4">
-               <label className="flex items-center gap-2 text-sm cursor-pointer">
-                 <input type="radio" name="otype" checked={ownerType === 'none'} onChange={() => setOwnerType('none')} />
-                 Tidak Ada
-               </label>
-               <label className="flex items-center gap-2 text-sm cursor-pointer">
-                 <input type="radio" name="otype" checked={ownerType === 'user'} onChange={() => setOwnerType('user')} />
-                 User
-               </label>
-               <label className="flex items-center gap-2 text-sm cursor-pointer">
-                 <input type="radio" name="otype" checked={ownerType === 'class'} onChange={() => setOwnerType('class')} />
-                 Kelas
-               </label>
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="radio" name="otype" checked={ownerType === 'none'} onChange={() => setOwnerType('none')} />
+                Tidak Ada
+              </label>
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="radio" name="otype" checked={ownerType === 'user'} onChange={() => setOwnerType('user')} />
+                User
+              </label>
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="radio" name="otype" checked={ownerType === 'class'} onChange={() => setOwnerType('class')} />
+                Kelas
+              </label>
             </div>
           </div>
 
           {ownerType === 'user' && (
             <div className="grid gap-2">
-               <Label>Pilih User</Label>
-               <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-                 <SelectTrigger><SelectValue placeholder="Pilih User" /></SelectTrigger>
-                 <SelectContent className="z-[9999] max-h-60">
-                   {users.map((u) => (
-                     <SelectItem key={u.id} value={String(u.id)}>
-                       {u.username} ({u.role})
-                     </SelectItem>
-                   ))}
-                 </SelectContent>
-               </Select>
+              <Label>Pilih User</Label>
+              <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                <SelectTrigger><SelectValue placeholder="Pilih User" /></SelectTrigger>
+                <SelectContent className="z-[9999] max-h-60">
+                  {users.map((u) => (
+                    <SelectItem key={u.id} value={String(u.id)}>
+                      {u.username} ({u.role})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
 
           {ownerType === 'class' && (
             <div className="grid gap-2">
-               <Label>Pilih Kelas</Label>
-               <Select value={selectedClassId} onValueChange={setSelectedClassId}>
-                 <SelectTrigger><SelectValue placeholder="Pilih Kelas" /></SelectTrigger>
-                 <SelectContent className="z-[9999] max-h-60">
-                   {classes.map((c) => (
-                     <SelectItem key={c.id} value={String(c.id)}>
-                       {c.nama}
-                     </SelectItem>
-                   ))}
-                 </SelectContent>
-               </Select>
+              <Label>Pilih Kelas</Label>
+              <Select value={selectedClassId} onValueChange={setSelectedClassId}>
+                <SelectTrigger><SelectValue placeholder="Pilih Kelas" /></SelectTrigger>
+                <SelectContent className="z-[9999] max-h-60">
+                  {classes.map((c) => (
+                    <SelectItem key={c.id} value={String(c.id)}>
+                      {c.nama}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
 
