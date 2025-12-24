@@ -7,7 +7,7 @@ export const exportAktivitasToExcel = (data: any) => {
     return;
   }
 
-  // --- 1. Helper Formatter--
+  // --- Helper Formatter--
   const formatTime = (iso: any) => {
     if (!iso) return "-";
     return new Date(iso).toLocaleString("id-ID", {
@@ -38,8 +38,9 @@ export const exportAktivitasToExcel = (data: any) => {
     return isOut ? "CHECK OUT" : "CHECK IN";
   };
 
+  // --- Mapping Data ---
   const excelData = data.map((item: any, index: any) => {
-    // Logic Pemilik
+    // Logic user
     const pemilik = item.userUsername
       ? `User: ${item.userUsername}`
       : item.kelasNama || "-";
@@ -61,14 +62,14 @@ export const exportAktivitasToExcel = (data: any) => {
           : "-",
       Durasi: getDuration(item.timestampMasuk, item.timestampKeluar),
       Status: getStatus(item.timestampMasuk, item.timestampKeluar),
+      Keterangan: item.keterangan || "-", 
     };
   });
 
   const worksheet = XLSX.utils.json_to_sheet(excelData);
 
-  // Atur Lebar Kolom (Optional, biar rapi)
   const wscols = [
-    { wch: 5 }, // No
+    { wch: 5 },  // No
     { wch: 20 }, // Kartu ID
     { wch: 20 }, // Lab
     { wch: 25 }, // Kelas/User
@@ -76,13 +77,14 @@ export const exportAktivitasToExcel = (data: any) => {
     { wch: 20 }, // Keluar
     { wch: 15 }, // Durasi
     { wch: 15 }, // Status
+    { wch: 30 }, // Keterangan (Lebar extra untuk teks panjang)
   ];
   worksheet["!cols"] = wscols;
 
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Data Aktivitas");
 
-  // --- 4. Download File ---
+  // --- Download File ---
   const fileName = `Laporan_Aktivitas_${new Date()
     .toISOString()
     .slice(0, 10)}.xlsx`;
