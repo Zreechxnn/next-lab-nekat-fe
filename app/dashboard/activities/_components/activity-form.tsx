@@ -1,36 +1,37 @@
 "use client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea"; // Pastikan komponen ini ada
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Check, DoorOpen, Clock, ChartPie } from "lucide-react";
 
-// --- Komponen Dialog Edit Catatan ---
+// --- Komponen Dialog Edit Catatan (Updated) ---
 export function EditNoteDialog({ open, onOpenChange, value, onChange, onSave }: any) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Edit Catatan Aktivitas</DialogTitle>
         </DialogHeader>
-        <div className="py-4 space-y-2">
-          <Label>Keterangan</Label>
-          <Input 
-            value={value} 
+        <div className="py-4 space-y-3">
+          <Label className="font-semibold text-gray-700">Keterangan / Alasan</Label>
+          <Textarea
+            value={value}
             onChange={(e) => onChange(e.target.value)}
-            placeholder="Contoh: Izin terlambat, Perbaikan PC, dll."
+            placeholder="Tulis keterangan lengkap di sini (contoh: Izin sakit, Perbaikan hardware, dll)..."
+            className="min-h-[120px] resize-none focus-visible:ring-indigo-500"
           />
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Batal</Button>
-          <Button onClick={onSave} className="bg-indigo-600 hover:bg-indigo-700">Simpan</Button>
+          <Button onClick={onSave} className="bg-indigo-600 hover:bg-indigo-700">Simpan Catatan</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
 
-// --- Komponen Kartu Statistik ---
+// --- Komponen Kartu Statistik (Tetap) ---
 export function StatCard({ title, val, bg, Icon }: any) {
   return (
     <div className={`${bg} rounded-xl p-5 flex items-center gap-4 text-white shadow-md`}>
