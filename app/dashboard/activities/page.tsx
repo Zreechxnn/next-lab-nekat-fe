@@ -217,11 +217,11 @@ export default function ActivityPage() {
           <Activity /> Log Aktivitas Lab
         </h1>
         <div className="flex gap-2">
-          <Input
+          {/* <Input
             placeholder="Cari User / Lab / Keterangan..."
             className="w-72 h-9 bg-gray-50 focus:bg-white transition-colors"
             onChange={(e) => setSearchQuery(e.target.value)}
-          />
+          /> */}
           <Button onClick={() => exportAktivitasToExcel(filteredData)} variant="outline" size="sm" className="gap-2 text-green-700 border-green-200 hover:bg-green-50">
             Excel <Download size={16} />
           </Button>
