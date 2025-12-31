@@ -9,8 +9,6 @@ import {
   LayoutDashboard,
   Users,
   X,
-  LogOut,
-  User,
   ArrowLeft,
 } from "lucide-react";
 import Image from "next/image";
@@ -19,6 +17,14 @@ import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { cn } from "@/lib/utils";
+
+// 1. Tambahkan properti allowedRoles
+interface MenuItem {
+  href: string;
+  label: string;
+  icon: any;
+  allowedRoles: string[]; // Array role yang diizinkan
+}
 
 export default function Sidebar({
   isOpenSidebar,
@@ -38,14 +44,61 @@ export default function Sidebar({
     if (!isDesktop) setIsOpenSidebar(false);
   };
 
-  const menuItems = [
-    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/dashboard/activities", label: "Aktivitas Lab", icon: Activity },
-    { href: "/dashboard/classes", label: "Data Kelas", icon: Book },
-    { href: "/dashboard/labs", label: "Data Lab", icon: FlaskConical },
-    { href: "/dashboard/cards", label: "Data Kartu", icon: IdCard },
-    { href: "/dashboard/users", label: "Data User", icon: Users },
+  // 2. Konfigurasi Menu dengan Role sesuai Backend
+  const menuItems: MenuItem[] = [
+    { 
+      href: "/dashboard", 
+      label: "Dashboard", 
+      icon: LayoutDashboard,
+      // Semua user yang login bisa akses dashboard
+      allowedRoles: ["admin", "operator", "guru", "siswa"] 
+    },
+    { 
+      href: "/dashboard/activities", 
+      label: "Aktivitas Lab", 
+      icon: Activity,
+      // AktivitasController: admin, operator, guru
+      allowedRoles: ["admin", "operator", "guru"] 
+    },
+    { 
+      href: "/dashboard/classes", 
+      label: "Data Kelas", 
+      icon: Book,
+      // KelasController: admin, guru
+      allowedRoles: ["admin", "guru"] 
+    },
+    { 
+      href: "/dashboard/labs", 
+      label: "Data Lab", 
+      icon: FlaskConical,
+      // RuanganController: Admin (CUD). Kita beri akses Operator untuk view/manage fisik.
+      allowedRoles: ["admin", "operator"] 
+    },
+    { 
+      href: "/dashboard/cards", 
+      label: "Data Kartu", 
+      icon: IdCard,
+      // KartuController: admin, operator
+      allowedRoles: ["admin", "operator"] 
+    },
+    { 
+      href: "/dashboard/users", 
+      label: "Data User", 
+      icon: Users,
+      // UserController: admin only
+      allowedRoles: ["admin"] 
+    },
   ];
+
+  // 3. Filter Menu Berdasarkan Role User saat ini
+  const filteredMenu = menuItems.filter((item) => {
+    // Jika user belum load atau tidak punya role, sembunyikan menu (kecuali dashboard umum jika perlu)
+    if (!user || !user.role) return false;
+    
+    // Cek apakah role user ada di allowedRoles item tersebut
+    // Kita gunakan toLowerCase() untuk jaga-jaga konsistensi string
+    return item.allowedRoles.includes(user.role.toLowerCase());
+  });
 
   return (
     <>
@@ -103,6 +156,13 @@ export default function Sidebar({
             SISTEM AKSES LAB
           </h3>
           <p className="text-xs text-gray-400">SMKN 1 Katapang</p>
+          
+          {/* Badge Role User (Opsional, untuk info visual) */}
+          {user?.role && (
+            <div className="mt-3 inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-emerald-100 text-emerald-800 uppercase">
+              {user.role}
+            </div>
+          )}
         </div>
 
         {/* MENU */}
@@ -123,7 +183,8 @@ export default function Sidebar({
               </li>
             ) : (
               <>
-                {menuItems.map((item) => {
+                {/* Render Menu yang sudah difilter */}
+                {filteredMenu.map((item) => {
                   const isActive = pathname === item.href;
 
                   return (
@@ -155,22 +216,6 @@ export default function Sidebar({
             )}
           </ul>
         </nav>
-
-        {/* LOGOUT */}
-        {/* <div className="px-4 pb-4 pt-3 border-t border-gray-100 shrink-0">
-          <button
-            onClick={handleLogout}
-            className="
-              flex w-full items-center gap-3
-              rounded-xl px-4 py-3
-              text-sm font-semibold text-red-600
-              hover:bg-red-50 transition
-            "
-          >
-            <LogOut className="w-5 h-5" />
-            Logout
-          </button>
-        </div> */}
 
         <div className="pt-4 mt-4 mb-2 border-t border-gray-100 text-center text-[11px] text-gray-400">
           <p>© {new Date().getFullYear()} SMKN 1 Katapang</p>

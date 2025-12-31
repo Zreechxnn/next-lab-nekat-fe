@@ -8,9 +8,12 @@ import AccessChart from "@/components/shared/AccessChart";
 import { dashboardService } from "@/services/dashboard.service";
 import { toast } from "sonner";
 import AuthGuard from "@/components/shared/AuthGuard";
+import RoleBasedGuard from "@/components/shared/RoleBasedGuard"; // Pastikan import ini ada
 import { Check, Clock, DoorOpen, FlaskConical, LayoutDashboard } from "lucide-react";
 
 export default function DashboardPage() {
+  // --- 1. AREA LOGIKA (HOOKS & FUNCTION) HARUS DISINI ---
+  
   const [stats, setStats] = useState({
     totalRuangan: 0,
     aktifSekarang: 0,
@@ -40,7 +43,6 @@ export default function DashboardPage() {
   const fetchChartData = async (mode: string) => {
     try {
       const token = getAuthToken();
-
       let res;
 
       if (mode === "monthly") {
@@ -66,7 +68,6 @@ export default function DashboardPage() {
     const fetchChartDataEffect = async (mode: string) => {
       fetchChartData(mode);
     };
-
     fetchChartDataEffect(chartMode);
   }, [chartMode]);
 
@@ -82,12 +83,8 @@ export default function DashboardPage() {
       await fetchStats();
     };
 
-    const fetchChartDataEffect = async (mode: string) => {
-      await fetchChartData(mode);
-    };
-
     fetchStatsEffect();
-    fetchChartDataEffect("monthly");
+    fetchChartData("monthly"); // Panggil langsung fungsi helper
 
     const connection = createSignalRConnection(token);
     connectionRef.current = connection;
@@ -118,7 +115,6 @@ export default function DashboardPage() {
           connection.on("UpdateDashboard", refreshAll);
           connection.on("ReceiveCheckIn", refreshAll);
           connection.on("ReceiveCheckOut", refreshAll);
-
           connection.on("UserStatusChanged", () => {});
         }
       } catch (e) {
@@ -134,92 +130,95 @@ export default function DashboardPage() {
     };
   }, []);
 
+  // --- 2. AREA TAMPILAN (JSX) HARUS DI DALAM RETURN ---
   return (
-    <AuthGuard>
-      <div className="font-sans space-y-6">
-        {/* Header Section */}
-        <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-          <h1 className="text-xl font-bold text-gray-700 flex items-center gap-2">
-            <LayoutDashboard className="text-emerald-600" /> Dashboard
-          </h1>
-          <div className="text-xs font-mono font-medium text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200 flex items-center gap-2">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
-            Live Connected
-          </div>
-        </div>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            title="Total Lab"
-            value={stats.totalRuangan || 0}
-            Icon={FlaskConical}
-            color="bg-blue-500" // Tetap biru untuk identitas 'Lab'
-          />
-          <StatCard
-            title="Lab Sedang Aktif"
-            value={stats.aktifSekarang || 0}
-            Icon={DoorOpen}
-            color="bg-emerald-500" // Emerald untuk menandakan status 'Aktif'
-          />
-          <StatCard
-            title="Total Kelas"
-            value={stats.totalKelas || 0}
-            Icon={Clock}
-            color="bg-orange-500" // Orange untuk waktu/kelas
-          />
-          <StatCard
-            title="Total Akses"
-            value={stats.totalAkses || 0}
-            Icon={Check}
-            color="bg-indigo-500" // Indigo untuk data akumulasi
-          />
-        </div>
-
-        {/* Chart Section */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h3 className="font-bold text-lg text-gray-800">
-                Statistik Penggunaan
-              </h3>
-              <p className="text-xs text-gray-400 mt-1">Trend akses laboratorium</p>
-            </div>
-
-            {/* Switch */}
-            <div className="bg-gray-100 p-1 rounded-lg flex text-xs font-medium">
-              <button
-                onClick={() => setChartMode("monthly")}
-                className={`px-3 py-1.5 rounded-md transition-all ${
-                  chartMode === "monthly"
-                    ? "bg-white shadow text-emerald-600 font-semibold"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                Bulanan
-              </button>
-              <button
-                onClick={() => setChartMode("daily")}
-                className={`px-3 py-1.5 rounded-md transition-all ${
-                  chartMode === "daily"
-                    ? "bg-white shadow text-emerald-600 font-semibold"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                30 Hari Terakhir
-              </button>
+    <RoleBasedGuard allowedRoles={["admin", "operator", "guru", "siswa"]}>
+      <AuthGuard>
+        <div className="font-sans space-y-6">
+          {/* Header Section */}
+          <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+            <h1 className="text-xl font-bold text-gray-700 flex items-center gap-2">
+              <LayoutDashboard className="text-emerald-600" /> Dashboard
+            </h1>
+            <div className="text-xs font-mono font-medium text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200 flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              Live Connected
             </div>
           </div>
 
-          <div className="h-[350px] w-full">
-            <AccessChart data={chartData} type={chartMode} />
+          {/* Stats Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard
+              title="Total Lab"
+              value={stats.totalRuangan || 0}
+              Icon={FlaskConical}
+              color="bg-blue-500"
+            />
+            <StatCard
+              title="Lab Sedang Aktif"
+              value={stats.aktifSekarang || 0}
+              Icon={DoorOpen}
+              color="bg-emerald-500"
+            />
+            <StatCard
+              title="Total Kelas"
+              value={stats.totalKelas || 0}
+              Icon={Clock}
+              color="bg-orange-500"
+            />
+            <StatCard
+              title="Total Akses"
+              value={stats.totalAkses || 0}
+              Icon={Check}
+              color="bg-indigo-500"
+            />
+          </div>
+
+          {/* Chart Section */}
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h3 className="font-bold text-lg text-gray-800">
+                  Statistik Penggunaan
+                </h3>
+                <p className="text-xs text-gray-400 mt-1">Trend akses laboratorium</p>
+              </div>
+
+              {/* Switch */}
+              <div className="bg-gray-100 p-1 rounded-lg flex text-xs font-medium">
+                <button
+                  onClick={() => setChartMode("monthly")}
+                  className={`px-3 py-1.5 rounded-md transition-all ${
+                    chartMode === "monthly"
+                      ? "bg-white shadow text-emerald-600 font-semibold"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  Bulanan
+                </button>
+                <button
+                  onClick={() => setChartMode("daily")}
+                  className={`px-3 py-1.5 rounded-md transition-all ${
+                    chartMode === "daily"
+                      ? "bg-white shadow text-emerald-600 font-semibold"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  30 Hari Terakhir
+                </button>
+              </div>
+            </div>
+
+            <div className="h-[350px] w-full">
+              <AccessChart data={chartData} type={chartMode} />
+            </div>
           </div>
         </div>
-      </div>
-    </AuthGuard>
+      </AuthGuard>
+    </RoleBasedGuard>
   );
 }
 
