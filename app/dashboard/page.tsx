@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
-import { useEffect, useState, useRef, ElementType } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createSignalRConnection } from "@/lib/signalr";
 import { HubConnection, HubConnectionState } from "@microsoft/signalr";
@@ -136,56 +136,57 @@ export default function DashboardPage() {
 
   return (
     <AuthGuard>
-      <div>
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-xl font-medium text-gray-700 bg-white px-5 py-2 rounded-xl shadow-sm border border-gray-100 flex items-center gap-2">
-            <LayoutDashboard className="mr-1" /> Dashboard
+      <div className="font-sans space-y-6">
+        {/* Header Section */}
+        <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+          <h1 className="text-xl font-bold text-gray-700 flex items-center gap-2">
+            <LayoutDashboard className="text-emerald-600" /> Dashboard
           </h1>
-          <div className="text-xs font-mono text-green-600 bg-green-100 px-2 py-1 rounded border border-green-200 flex items-center gap-2">
+          <div className="text-xs font-mono font-medium text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200 flex items-center gap-2">
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
             Live Connected
           </div>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             title="Total Lab"
-            value={stats.totalRuangan || stats.totalRuangan}
+            value={stats.totalRuangan || 0}
             Icon={FlaskConical}
-            color="bg-gradient-to-br from-[#9b9bf8] to-[#8a8af5]"
+            color="bg-blue-500" // Tetap biru untuk identitas 'Lab'
           />
           <StatCard
-            title="Lab Aktif"
-            value={stats.aktifSekarang || stats.aktifSekarang}
+            title="Lab Sedang Aktif"
+            value={stats.aktifSekarang || 0}
             Icon={DoorOpen}
-            color="bg-gradient-to-br from-[#a3d9d3] to-[#8bcbc4]"
+            color="bg-emerald-500" // Emerald untuk menandakan status 'Aktif'
           />
           <StatCard
             title="Total Kelas"
-            value={stats.totalKelas || stats.totalKelas}
+            value={stats.totalKelas || 0}
             Icon={Clock}
-            color="bg-gradient-to-br from-[#fcb6b1] to-[#fba19b]"
+            color="bg-orange-500" // Orange untuk waktu/kelas
           />
           <StatCard
-            title="Total Akses"
-            value={stats.totalAkses || stats.totalAkses}
+            title="Total Akses (Hari Ini)"
+            value={stats.totalAkses || 0}
             Icon={Check}
-            color="bg-gradient-to-br from-[#9b9bf8] to-[#8a8af5]"
+            color="bg-indigo-500" // Indigo untuk data akumulasi
           />
         </div>
 
         {/* Chart Section */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
           <div className="flex justify-between items-center mb-6">
             <div>
-              <h3 className="font-semibold text-lg text-gray-800">
+              <h3 className="font-bold text-lg text-gray-800">
                 Statistik Penggunaan
               </h3>
-              <p className="text-xs text-gray-400">Trend akses lab</p>
+              <p className="text-xs text-gray-400 mt-1">Trend akses laboratorium</p>
             </div>
 
             {/* Switch */}
@@ -194,7 +195,7 @@ export default function DashboardPage() {
                 onClick={() => setChartMode("monthly")}
                 className={`px-3 py-1.5 rounded-md transition-all ${
                   chartMode === "monthly"
-                    ? "bg-white shadow text-blue-600"
+                    ? "bg-white shadow text-emerald-600 font-semibold"
                     : "text-gray-500 hover:text-gray-700"
                 }`}
               >
@@ -204,16 +205,16 @@ export default function DashboardPage() {
                 onClick={() => setChartMode("daily")}
                 className={`px-3 py-1.5 rounded-md transition-all ${
                   chartMode === "daily"
-                    ? "bg-white shadow text-blue-600"
+                    ? "bg-white shadow text-emerald-600 font-semibold"
                     : "text-gray-500 hover:text-gray-700"
                 }`}
               >
-                30 Hari
+                30 Hari Terakhir
               </button>
             </div>
           </div>
 
-          <div className="h-[300px] w-full">
+          <div className="h-[350px] w-full">
             <AccessChart data={chartData} type={chartMode} />
           </div>
         </div>
@@ -235,14 +236,14 @@ function StatCard({
 }) {
   return (
     <div
-      className={`${color} text-white p-6 rounded-2xl shadow-lg flex items-center gap-4 transition hover:-translate-y-1`}
+      className={`${color} text-white p-6 rounded-xl shadow-md flex items-center gap-4 transition-transform hover:-translate-y-1`}
     >
-      <div className="w-12 h-12 bg-white/30 rounded-full flex items-center justify-center text-2xl">
-        <Icon size={32} />
+      <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center shrink-0">
+        <Icon size={24} className="text-white" />
       </div>
       <div>
-        <h3 className="text-sm font-medium opacity-90">{title}</h3>
-        <p className="text-2xl font-bold">{value ?? 0}</p>
+        <h3 className="text-xs font-medium opacity-90 uppercase tracking-wide">{title}</h3>
+        <p className="text-2xl font-bold mt-0.5">{value}</p>
       </div>
     </div>
   );

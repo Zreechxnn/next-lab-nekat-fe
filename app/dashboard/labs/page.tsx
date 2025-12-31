@@ -3,62 +3,42 @@
 
 import { useLocalPagination } from "@/hooks/useLocalPagination";
 import { roomService } from "@/services/room.service";
-import {
-  keepPreviousData,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PaginationControls } from "@/components/shared/PaginationControls";
-import { Edit, List, Plus, Trash } from "lucide-react";
+import { Edit, FlaskConical, Plus, Trash } from "lucide-react";
 import LabForm from "./_components/LabForm";
+import { useSearchStore } from "@/store/useSearchStore"; // Import
 
 export default function LabsPage() {
   const queryClient = useQueryClient();
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedLab, setSelectedLab] = useState(null);
-
   const [filteredData, setFilteredData] = useState<any[]>([]);
 
-  const { data, isLoading, isError } = useQuery({
+  // Global Search
+  const globalSearchQuery = useSearchStore((state) => state.searchQuery);
+  const setGlobalSearchQuery = useSearchStore((state) => state.setSearchQuery);
+
+  const { data, isLoading } = useQuery({
     queryKey: ["labs"],
     queryFn: () => roomService.getAll(),
     placeholderData: keepPreviousData,
   });
 
   useEffect(() => {
-    const setFilteredDataEffect = async (data: any) => {
-      setFilteredData(data.data);
-    };
-
-    if (data) {
-      setFilteredDataEffect(data);
-    }
+    if (data?.data) setFilteredData(data.data);
   }, [data]);
+
+  useEffect(() => {
+    setGlobalSearchQuery("");
+    return () => setGlobalSearchQuery("");
+  }, [setGlobalSearchQuery]);
 
   const pagination = useLocalPagination({
     initialData: filteredData,
@@ -66,19 +46,11 @@ export default function LabsPage() {
     searchKeys: ["nama"],
   });
 
-  const {
-    paginatedData,
-    currentPage,
-    limit,
-    totalItems,
-    totalPages,
-    hasNextPage,
-    hasPrevPage,
-    goToPage,
-    nextPage,
-    prevPage,
-    setSearchQuery,
-  } = pagination;
+  const { paginatedData, currentPage, limit, setSearchQuery } = pagination;
+
+  useEffect(() => {
+    setSearchQuery(globalSearchQuery);
+  }, [globalSearchQuery, setSearchQuery]);
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => roomService.deleteById(String(id)),
@@ -87,124 +59,54 @@ export default function LabsPage() {
       toast.success("Berhasil menghapus data lab!");
     },
     onError: (err) => {
-      if (err instanceof AxiosError) {
-        toast.error(
-          err.response?.data.message ||
-            "Terjadi kesalahan saat menghapus lab!"
-        );
-      }
+      if (err instanceof AxiosError) toast.error(err.response?.data.message || "Terjadi kesalahan!");
     },
   });
 
-  const createHandler = () => {
-    setSelectedLab(null);
-    setIsModalOpen(true);
-  };
-
-  const editHandler = (labData: any) => {
-    setSelectedLab(labData);
-    setIsModalOpen(true);
-  };
-
-  const handleDelete = (id: number) => deleteMutation.mutate(id);
-
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 font-sans">
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
-        <div className="px-6 py-5 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center gap-4">
           <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-            <List />
-            Daftar Lab
+            <FlaskConical className="text-indigo-600" />
+            Daftar Laboratorium
           </h3>
-          <div className="flex gap-2">
-            <Button
-              onClick={createHandler}
-              className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-50 transition flex items-center gap-2 shadow-sm"
-            >
-              <Plus />
-              Tambah Lab
-            </Button>
-          </div>
+          {/* Search lokal dihapus */}
+          <Button onClick={() => { setSelectedLab(null); setIsModalOpen(true); }} className="bg-indigo-600 hover:bg-indigo-700 text-white">
+            <Plus size={16} className="mr-2" /> Tambah
+          </Button>
         </div>
 
         <Table className="min-w-[800px]">
           <TableHeader>
-            <TableRow>
-              <TableHead className="w-16 text-center">NO</TableHead>
-              <TableHead>NAMA LAB</TableHead>
-              <TableHead className="text-center" colSpan={2}>AKSI</TableHead>
+            <TableRow className="bg-gray-50/50">
+              <TableHead className="w-16 text-center font-bold text-gray-600">NO</TableHead>
+              <TableHead className="font-bold text-gray-600">NAMA LAB</TableHead>
+              <TableHead className="text-center font-bold text-gray-600 w-32">AKSI</TableHead>
             </TableRow>
           </TableHeader>
-
           <TableBody>
             {isLoading ? (
-              <TableRow>
-                <TableCell
-                  colSpan={3}
-                  className="py-10 text-center text-muted-foreground"
-                >
-                  Memuat data...
-                </TableCell>
-              </TableRow>
+              <TableRow><TableCell colSpan={3} className="py-10 text-center text-muted-foreground animate-pulse">Sedang memuat data lab...</TableCell></TableRow>
             ) : filteredData.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={3}
-                  className="py-10 text-center text-muted-foreground"
-                >
-                  Tidak ada data ditemukan
-                </TableCell>
-              </TableRow>
+              <TableRow><TableCell colSpan={3} className="py-10 text-center text-muted-foreground">Tidak ada data lab ditemukan.</TableCell></TableRow>
             ) : (
               paginatedData.map((item: any, idx: number) => (
-                <TableRow
-                  key={item.id}
-                  className="hover:bg-muted/40 transition-colors"
-                >
-                  <TableCell className="text-center font-medium text-muted-foreground">
-                    {(currentPage - 1) * limit + idx + 1}
-                  </TableCell>
-
-                  <TableCell>{item.nama}</TableCell>
-
-                  <TableCell colSpan={2} className="text-center space-x-2">
-                    <Button
-                      variant={"outline"}
-                      size="sm"
-                      onClick={() => editHandler(item)}
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Button>
+                <TableRow key={item.id} className="hover:bg-indigo-50/30 transition-colors border-b border-gray-50">
+                  <TableCell className="text-center font-medium text-gray-500">{(currentPage - 1) * limit + idx + 1}</TableCell>
+                  <TableCell><span className="font-semibold text-gray-800">{item.nama}</span></TableCell>
+                  <TableCell className="text-center space-x-2">
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50" onClick={() => { setSelectedLab(item); setIsModalOpen(true); }}><Edit size={16} /></Button>
                     <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="destructive"
-                          size="icon"
-                          className="h-8 w-8"
-                        >
-                          <Trash className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-
+                      <AlertDialogTrigger asChild><Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"><Trash size={16} /></Button></AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>
-                            Apakah Anda Yakin?
-                          </AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Aksi ini tidak dapat dibatalkan. Data yang sudah
-                            dihapus tidak akan bisa dikembalikan lagi.
-                          </AlertDialogDescription>
+                          <AlertDialogTitle>Hapus Lab?</AlertDialogTitle>
+                          <AlertDialogDescription>Data lab <b>{item.nama}</b> akan dihapus permanen.</AlertDialogDescription>
                         </AlertDialogHeader>
-
                         <AlertDialogFooter>
                           <AlertDialogCancel>Batal</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => handleDelete(item.id)}
-                            className="bg-red-500 hover:bg-red-600"
-                          >
-                            Hapus
-                          </AlertDialogAction>
+                          <AlertDialogAction onClick={() => deleteMutation.mutate(item.id)} className="bg-red-600 hover:bg-red-700">Hapus</AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
@@ -217,12 +119,7 @@ export default function LabsPage() {
       </div>
 
       <PaginationControls {...pagination} />
-
-      <LabForm
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        initialData={selectedLab}
-      />
+      <LabForm isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} initialData={selectedLab} />
     </div>
   );
 }

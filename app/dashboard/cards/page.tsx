@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useLocalPagination } from "@/hooks/useLocalPagination";
@@ -36,125 +37,94 @@ import { IdCard, Edit, Plus, Trash, User, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import CardFormDialog from "./_components/CardFormDialog";
 
-// --- IMPORTS SIGNALR ---
 import { createSignalRConnection } from "@/lib/signalr";
 import { HubConnection, HubConnectionState } from "@microsoft/signalr";
+// 1. Import Store
+import { useSearchStore } from "@/store/useSearchStore";
 
 export default function CardsPage() {
   const queryClient = useQueryClient();
-  
-  // Ref untuk koneksi SignalR
   const connectionRef = useRef<HubConnection | null>(null);
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCard, setSelectedCard] = useState(null);
   const [filteredData, setFilteredData] = useState<any[]>([]);
 
-  // 1. Fetch Data Utama
+  // 2. State Global Search
+  const globalSearchQuery = useSearchStore((state) => state.searchQuery);
+  const setGlobalSearchQuery = useSearchStore((state) => state.setSearchQuery);
+
   const { data, isLoading } = useQuery({
     queryKey: ["cards"],
     queryFn: () => cardService.getAll(),
     placeholderData: keepPreviousData,
   });
 
-  // 2. Setup SignalR Listeners (Solusi Warning Log)
+  // SignalR Logic (Tetap sama)
   useEffect(() => {
     const token = localStorage.getItem("authToken");
     if (!token) return;
-
-    // Buat koneksi
     const connection = createSignalRConnection(token);
     connectionRef.current = connection;
-
     const startSignalR = async () => {
       if (connection.state === HubConnectionState.Disconnected) {
         try {
           await connection.start();
-          
-          // Fungsi helper untuk refresh tabel
           const refreshData = () => {
              queryClient.invalidateQueries({ queryKey: ["cards"] });
           };
-
-          // --- REGISTER EVENT LISTENERS SESUAI LOG WARNING ---
-          
-          // a. Saat ada registrasi kartu baru
           connection.on("receivecardregistration", () => {
              refreshData();
              toast.success("Kartu baru berhasil didaftarkan via alat!");
           });
-
-          // b. Saat kartu dihapus
           connection.on("kartudihapus", () => {
              refreshData();
              toast.info("Data kartu telah dihapus.");
           });
-
-          // c. Notifikasi umum terkait kartu (tap/scan)
           connection.on("kartunotification", (msg) => {
              if (typeof msg === 'string') toast.info(msg);
              refreshData();
           });
-
-          // d. Status user berubah (berpengaruh ke kepemilikan kartu)
-          connection.on("userstatuschanged", () => {
-             refreshData();
-          });
-
-          // e. Update data kartu (Event standar)
-          connection.on("ReceiveCardUpdate", () => {
-             refreshData();
-          });
-
+          connection.on("userstatuschanged", refreshData);
+          connection.on("ReceiveCardUpdate", refreshData);
         } catch (e) {
           console.error("SignalR Connection Error:", e);
         }
       }
     };
-
-    // Delay sedikit untuk memastikan komponen mount sempurna
     const timer = setTimeout(startSignalR, 1000);
-
-    // Cleanup saat unmount
     return () => {
       clearTimeout(timer);
-      if (connection) {
-        connection.off("receivecardregistration");
-        connection.off("kartudihapus");
-        connection.off("kartunotification");
-        connection.off("userstatuschanged");
-        connection.off("ReceiveCardUpdate");
-        connection.stop().catch(() => {});
-      }
+      if (connection) connection.stop().catch(() => {});
     };
   }, [queryClient]);
 
-  // 3. Sinkronisasi Data Query ke State Lokal (untuk Pagination)
   useEffect(() => {
     const setFilteredDataEffect = async (data: any) => {
       const rawData = data?.data || data;
       setFilteredData(Array.isArray(rawData) ? rawData : []);
     };
-
-    if (data) {
-      setFilteredDataEffect(data);
-    }
+    if (data) setFilteredDataEffect(data);
   }, [data]);
 
-  // 4. Setup Pagination Lokal
+  // 3. Reset Search saat mount
+  useEffect(() => {
+    setGlobalSearchQuery("");
+    return () => setGlobalSearchQuery("");
+  }, [setGlobalSearchQuery]);
+
   const pagination = useLocalPagination({
     initialData: filteredData,
     itemsPerPage: 15,
     searchKeys: ["uid", "userUsername", "kelasNama", "keterangan"],
   });
 
-  const {
-    paginatedData,
-    currentPage,
-    limit,
-  } = pagination;
+  const { paginatedData, currentPage, limit, setSearchQuery } = pagination;
 
-  // 5. Setup Delete Mutation
+  // 4. Sinkronisasi Search
+  useEffect(() => {
+    setSearchQuery(globalSearchQuery);
+  }, [globalSearchQuery, setSearchQuery]);
+
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => cardService.deleteById(id),
     onSuccess: () => {
@@ -163,14 +133,11 @@ export default function CardsPage() {
     },
     onError: (err) => {
       if (err instanceof AxiosError) {
-        toast.error(
-          err.response?.data.message || "Terjadi kesalahan saat menghapus kartu!"
-        );
+        toast.error(err.response?.data.message || "Terjadi kesalahan saat menghapus kartu!");
       }
     },
   });
 
-  // --- Handlers ---
   const createHandler = () => {
     setSelectedCard(null);
     setIsModalOpen(true);
@@ -182,10 +149,7 @@ export default function CardsPage() {
   };
 
   const handleDelete = (id: number) => deleteMutation.mutate(id);
-
-  const handleFormSuccess = () => {
-    queryClient.invalidateQueries({ queryKey: ["cards"] });
-  };
+  const handleFormSuccess = () => queryClient.invalidateQueries({ queryKey: ["cards"] });
 
   return (
     <div className="flex flex-col gap-6 font-sans">
@@ -226,19 +190,13 @@ export default function CardsPage() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell
-                  colSpan={6}
-                  className="py-10 text-center text-muted-foreground animate-pulse"
-                >
+                <TableCell colSpan={6} className="py-10 text-center text-muted-foreground animate-pulse">
                   Sedang memuat data kartu...
                 </TableCell>
               </TableRow>
             ) : filteredData.length === 0 ? (
               <TableRow>
-                <TableCell
-                  colSpan={6}
-                  className="py-10 text-center text-muted-foreground"
-                >
+                <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
                   Tidak ada data kartu ditemukan
                 </TableCell>
               </TableRow>

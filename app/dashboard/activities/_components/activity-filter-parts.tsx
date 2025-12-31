@@ -42,7 +42,7 @@ export function SelectBox({ label, name, val, fn, opts, k }: SelectBoxProps) {
       <Select value={val} onValueChange={handleValueChange} name={name}>
         <SelectTrigger
           id={name}
-          className="w-full text-sm h-[38px] border-gray-300 focus:ring-indigo-500 bg-white"
+          className="w-full text-sm h-[38px] border-gray-300 focus:ring-emerald-500 bg-white"
         >
           <SelectValue placeholder={`Semua ${label}`} />
         </SelectTrigger>
@@ -73,7 +73,7 @@ export function DateInput({ label, name, val, fn }: any) {
         name={name}
         value={val}
         onChange={fn}
-        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:border-indigo-500 bg-white text-gray-600 font-medium h-[38px]"
+        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:border-emerald-500 bg-white text-gray-600 font-medium h-[38px]"
       />
     </div>
   );
@@ -85,7 +85,7 @@ export function StatusSelect({ val, fn }: { val: string; fn: (v: string) => void
     <div className="flex flex-col space-y-1.5">
       <Label className="text-sm font-bold text-gray-800">Status</Label>
       <Select value={val} onValueChange={fn}>
-        <SelectTrigger className="w-full text-sm h-[38px] border-gray-300 bg-white">
+        <SelectTrigger className="w-full text-sm h-[38px] border-gray-300 bg-white focus:ring-emerald-500">
           <SelectValue placeholder="Semua Status" />
         </SelectTrigger>
         <SelectContent>

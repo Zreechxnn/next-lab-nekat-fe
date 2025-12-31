@@ -1,5 +1,6 @@
 "use client";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useSearchStore } from "@/store/useSearchStore"; // 1. Import Store
 import { ChevronDown, LogOut, Menu, Search, User } from "lucide-react";
 import { Button } from "../ui/button";
 import {
@@ -14,6 +15,9 @@ import { usePathname, useRouter } from "next/navigation";
 
 export default function Header({ onClick }: { onClick: () => void }) {
   const { user, logout } = useAuthStore();
+  // 2. Gunakan Global Search State
+  const { searchQuery, setSearchQuery } = useSearchStore(); 
+  
   const router = useRouter();
   const pathname = usePathname();
 
@@ -41,8 +45,8 @@ export default function Header({ onClick }: { onClick: () => void }) {
         ${pathname !== "/dashboard/my-profile" ? "justify-between" : "justify-end"}
         ${
           isScrolled
-            ? "bg-white/40 backdrop-blur-md border border-white/20 shadow-sm" // Saat Scroll: Glass Effect (Semi Transparan + Blur)
-            : "bg-white border border-gray-200 shadow-sm" // Saat di Atas: Solid Putih
+            ? "bg-white/40 backdrop-blur-md border border-white/20 shadow-sm"
+            : "bg-white border border-gray-200 shadow-sm"
         }
       `}
     >
@@ -60,6 +64,7 @@ export default function Header({ onClick }: { onClick: () => void }) {
         </h1>
       )}
 
+      {/* SEARCH BAR YANG SUDAH ADA (Diaktifkan) */}
       {pathname !== "/dashboard" && pathname !== "/dashboard/my-profile" && (
         <div className={`
           px-5 py-2.5 rounded-full shadow-sm w-full md:w-[400px] flex items-center border
@@ -69,8 +74,10 @@ export default function Header({ onClick }: { onClick: () => void }) {
           <Search className="w-4 h-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Search"
+            placeholder="Search data..."
             className="border-none outline-none ml-4 w-full text-sm bg-transparent"
+            value={searchQuery} // 3. Binding Value
+            onChange={(e) => setSearchQuery(e.target.value)} // 4. Update State
           />
         </div>
       )}
@@ -88,23 +95,17 @@ export default function Header({ onClick }: { onClick: () => void }) {
               ${
                 isOpenProfileDropdown || !isScrolled
                   ? "bg-white border-gray-200 shadow-sm hover:bg-gray-50"
-                  : "bg-white/60 border-white/40 shadow-sm hover:bg-white/80" // Tombol profile juga menyesuaikan glass
+                  : "bg-white/60 border-white/40 shadow-sm hover:bg-white/80"
               }
             `}
           >
-            <div className="relative">
-              <i className="far fa-bell text-gray-500 text-sm"></i>
-              <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-red-500" />
-            </div>
-
+            {/* ... (Sisa kode profile dropdown tetap sama) ... */}
             <div className="w-8 h-8 rounded-full bg-gray-100 border border-gray-300 flex items-center justify-center">
               <User className="w-4 h-4 text-gray-600" />
             </div>
-
             <span className="hidden sm:block text-sm font-semibold text-gray-700 max-w-[120px] truncate">
               {user?.username ?? "Loading..."}
             </span>
-
             <ChevronDown
               className={`w-4 h-4 text-gray-500 transition-transform ${
                 isOpenProfileDropdown ? "rotate-180" : ""
@@ -112,7 +113,7 @@ export default function Header({ onClick }: { onClick: () => void }) {
             />
           </button>
         </DropdownMenuTrigger>
-
+        {/* ... (Dropdown Content tetap sama) ... */}
         <DropdownMenuContent
           align="end"
           sideOffset={12}
@@ -124,7 +125,6 @@ export default function Header({ onClick }: { onClick: () => void }) {
               {user?.username}
             </p>
           </div>
-
           <DropdownMenuGroup>
             <DropdownMenuItem
               className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm cursor-pointer hover:bg-gray-100"
@@ -134,9 +134,7 @@ export default function Header({ onClick }: { onClick: () => void }) {
               Profil Saya
             </DropdownMenuItem>
           </DropdownMenuGroup>
-
           <div className="my-1 h-px bg-gray-100" />
-
           <DropdownMenuItem
             className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm cursor-pointer text-red-600 hover:bg-red-50"
             onClick={handleLogout}

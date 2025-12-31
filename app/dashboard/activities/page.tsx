@@ -39,20 +39,25 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useLocalPagination } from "@/hooks/useLocalPagination";
 import { PaginationControls } from "@/components/shared/PaginationControls";
-import { Input } from "@/components/ui/input";
 
 // Import komponen modular
 import { SelectBox, DateInput, StatusSelect } from "./_components/activity-filter-parts";
 import { EditNoteDialog, ActivityStats } from "./_components/activity-form";
+
+// 1. Import Store
+import { useSearchStore } from "@/store/useSearchStore"; 
 
 export default function ActivityPage() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [noteDialog, setNoteDialog] = useState({ open: false, id: 0, val: "" });
 
+  // 2. Ambil Global State Search
+  const globalSearchQuery = useSearchStore((state) => state.searchQuery);
+  const setGlobalSearchQuery = useSearchStore((state) => state.setSearchQuery);
+
   const { options, filters, handleFilterChange, filteredData } = useActivityFilter(data);
 
-  // Pagination untuk tabel: 15 item per halaman agar pas di layar laptop
   const pagination = useLocalPagination({
     initialData: filteredData,
     itemsPerPage: 15,
@@ -62,7 +67,18 @@ export default function ActivityPage() {
   const { paginatedData, currentPage, limit, setSearchQuery } = pagination;
   const connectionRef = useRef<HubConnection | null>(null);
 
-  // --- Helper: Hitung Durasi Realtime ---
+  // 3. Reset Search Header saat halaman dimuat/ditinggalkan
+  useEffect(() => {
+    setGlobalSearchQuery("");
+    return () => setGlobalSearchQuery("");
+  }, [setGlobalSearchQuery]);
+
+  // 4. Sinkronisasi: Header ketik -> Pagination filter
+  useEffect(() => {
+    setSearchQuery(globalSearchQuery);
+  }, [globalSearchQuery, setSearchQuery]);
+
+  // --- Helper Functions ---
   const calculateDuration = (start: string, end: string) => {
     if (!end || new Date(end).getFullYear() === 1 || start === end) return "Berjalan...";
     const diff = Math.floor((new Date(end).getTime() - new Date(start).getTime()) / 60000);
@@ -72,7 +88,6 @@ export default function ActivityPage() {
     return `${hours}j ${mins}m`;
   };
 
-  // --- Helper: Format Tanggal Ringkas ---
   const formatDateTime = (iso: string) => {
     if (!iso || iso.startsWith("0001")) return "-";
     return new Date(iso).toLocaleString("id-ID", {
@@ -80,7 +95,6 @@ export default function ActivityPage() {
     });
   };
 
-  // --- Statistik Logic ---
   const stats = useMemo(() => {
     const total = filteredData.length;
     const active = filteredData.filter((i: any) => {
@@ -181,7 +195,7 @@ export default function ActivityPage() {
 
   const handleDelete = async (id: string) => {
     if(!confirm("Yakin ingin menghapus log aktivitas ini?")) return;
-    
+
     toast.loading("Menghapus data...", { id: "delete" });
     try {
       const res = await activityService.deleteById(id);
@@ -214,15 +228,11 @@ export default function ActivityPage() {
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-white p-4 rounded-xl border shadow-sm">
         <h1 className="text-xl font-bold text-gray-700 flex items-center gap-2">
-          <Activity /> Log Aktivitas Lab
+          <Activity className="text-emerald-600" /> Log Aktivitas Lab
         </h1>
         <div className="flex gap-2">
-          {/* <Input
-            placeholder="Cari User / Lab / Keterangan..."
-            className="w-72 h-9 bg-gray-50 focus:bg-white transition-colors"
-            onChange={(e) => setSearchQuery(e.target.value)}
-          /> */}
-          <Button onClick={() => exportAktivitasToExcel(filteredData)} variant="outline" size="sm" className="gap-2 text-green-700 border-green-200 hover:bg-green-50">
+           {/* Tombol Excel saja, Input Search sudah di Header */}
+          <Button onClick={() => exportAktivitasToExcel(filteredData)} variant="outline" size="sm" className="gap-2 text-emerald-700 border-emerald-200 hover:bg-emerald-50">
             Excel <Download size={16} />
           </Button>
         </div>
@@ -284,14 +294,13 @@ export default function ActivityPage() {
               <TableRow><TableCell colSpan={8} className="text-center py-12 text-gray-400 italic">Belum ada aktivitas terekam.</TableCell></TableRow>
             ) : paginatedData.map((item: any, idx: number) => {
                const isCheckOut = item.timestampKeluar && new Date(item.timestampKeluar).getFullYear() !== 1 && item.timestampMasuk !== item.timestampKeluar;
-               
+
                return (
-                <TableRow key={item.id} className="hover:bg-indigo-50/30 transition-colors group">
+                <TableRow key={item.id} className="hover:bg-emerald-50/50 transition-colors group">
                   <TableCell className="text-center text-gray-500 font-mono text-xs">
                     {(currentPage - 1) * limit + idx + 1}
                   </TableCell>
-                  
-                  {/* Kolom Identitas: Nama di atas, UID di bawah */}
+
                   <TableCell>
                     <div className="flex flex-col justify-center">
                       <span className="font-semibold text-gray-800 text-sm truncate max-w-[180px]" title={item.userUsername ?? item.kelasNama}>
@@ -304,49 +313,47 @@ export default function ActivityPage() {
                       </div>
                     </div>
                   </TableCell>
-                  
+
                   <TableCell className="text-gray-700 font-medium text-sm">
                     {item.ruanganNama}
                   </TableCell>
-                  
-                  {/* Kolom Waktu: Stacked dengan panah indikator */}
+
                   <TableCell>
-                     <div className="flex flex-col text-xs gap-1">
-                        <span className="flex items-center gap-1.5 text-green-700 font-medium">
-                           <ArrowRight size={12} className="text-green-500" /> {formatDateTime(item.timestampMasuk)}
+                      <div className="flex flex-col text-xs gap-1">
+                        <span className="flex items-center gap-1.5 text-emerald-700 font-medium">
+                           <ArrowRight size={12} className="text-emerald-500" /> {formatDateTime(item.timestampMasuk)}
                         </span>
                         {isCheckOut && (
                           <span className="flex items-center gap-1.5 text-gray-500 font-medium">
                              <ArrowRight size={12} className="text-red-400" /> {formatDateTime(item.timestampKeluar)}
                           </span>
                         )}
-                     </div>
+                      </div>
                   </TableCell>
 
                   <TableCell>
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 bg-indigo-50 w-fit px-2.5 py-1 rounded-full border border-indigo-100">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 w-fit px-2.5 py-1 rounded-full border border-emerald-100">
                        <Clock size={12} />
                        {calculateDuration(item.timestampMasuk, item.timestampKeluar)}
                     </div>
                   </TableCell>
-                  
+
                   <TableCell>
-                    <Badge variant={isCheckOut ? "secondary" : "default"} className={`text-[10px] px-2 py-0.5 shadow-none ${isCheckOut ? 'bg-gray-100 text-gray-500 hover:bg-gray-200 border-gray-200' : 'bg-green-100 text-green-700 hover:bg-green-200 border-green-200'}`}>
+                    <Badge variant={isCheckOut ? "secondary" : "default"} className={`text-[10px] px-2 py-0.5 shadow-none ${isCheckOut ? 'bg-gray-100 text-gray-500 hover:bg-gray-200 border-gray-200' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-emerald-200'}`}>
                        {isCheckOut ? "SELESAI" : "AKTIF"}
                     </Badge>
                   </TableCell>
-                  
-                  {/* Kolom Keterangan: Truncate + Edit Button on Hover */}
+
                   <TableCell className="align-middle">
                     <div className="flex items-center justify-between gap-2 group/note relative h-full">
                       <div className="text-sm text-gray-600 truncate max-w-[200px]" title={item.keterangan}>
                         {item.keterangan || <span className="text-gray-300 italic text-xs font-light">Tidak ada catatan</span>}
                       </div>
-                      
+
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6 opacity-0 group-hover/note:opacity-100 transition-opacity text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 absolute right-0 bg-white/80 backdrop-blur-sm"
+                        className="h-6 w-6 opacity-0 group-hover/note:opacity-100 transition-opacity text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 absolute right-0 bg-white/80 backdrop-blur-sm"
                         onClick={() => setNoteDialog({ open: true, id: item.id, val: item.keterangan || "" })}
                         title="Edit Keterangan"
                       >
@@ -356,10 +363,10 @@ export default function ActivityPage() {
                   </TableCell>
 
                   <TableCell className="text-right">
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-8 w-8 text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors" 
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                       onClick={() => handleDelete(item.id)}
                       title="Hapus Baris Ini"
                     >
