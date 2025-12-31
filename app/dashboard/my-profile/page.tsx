@@ -3,7 +3,12 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { authService } from "@/services/auth.service";
-import { Loader2, Pencil, X, Check } from "lucide-react"; // Tambah icon
+import { Loader2, Pencil, X, Check, User, ShieldCheck, CreditCard } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 interface ProfileData {
   id: number;
@@ -40,7 +45,7 @@ export default function MyProfilePage() {
       const response = await authService.getProfile();
       if (response.success) {
         setProfile(response.data);
-        setEditUsername(response.data.username); // Set initial value form
+        setEditUsername(response.data.username);
       } else {
         toast.error("Gagal memuat profil");
       }
@@ -71,12 +76,11 @@ export default function MyProfilePage() {
 
     setIsSavingProfile(true);
     try {
-      // Panggil service updateProfile yang baru dibuat
       const response = await authService.updateProfile({ username: editUsername });
 
       if (response.success) {
         toast.success("Profil berhasil diperbarui!");
-        setProfile(prev => prev ? { ...prev, username: editUsername } : null);
+        setProfile((prev) => (prev ? { ...prev, username: editUsername } : null));
         setIsEditing(false);
       } else {
         toast.error(response.message || "Gagal update profil");
@@ -107,7 +111,7 @@ export default function MyProfilePage() {
       const response = await authService.changePassword({
         oldPassword: passForm.oldPassword,
         newPassword: passForm.newPassword,
-        confirmPassword: passForm.confirmPassword
+        confirmPassword: passForm.confirmPassword,
       });
 
       if (response.success) {
@@ -117,171 +121,202 @@ export default function MyProfilePage() {
         toast.error(response.message || "Gagal mengubah password");
       }
     } catch (error: any) {
-        const errorMessage = error?.response?.data?.message || "Terjadi kesalahan server";
-        toast.error(errorMessage);
+      const errorMessage = error?.response?.data?.message || "Terjadi kesalahan server";
+      toast.error(errorMessage);
     } finally {
       setIsSubmittingPass(false);
     }
   };
 
-  if (loading) return (
-    <div className="flex h-[50vh] w-full items-center justify-center">
-        <Loader2 className="animate-spin text-blue-500" size={32} />
-    </div>
-  );
+  if (loading)
+    return (
+      <div className="flex h-[50vh] w-full items-center justify-center">
+        <Loader2 className="animate-spin text-emerald-600" size={32} />
+      </div>
+    );
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">Profil Saya</h1>
+    <div className="space-y-6 font-sans">
+      {/* Header Section Konsisten */}
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-white p-4 rounded-xl border shadow-sm">
+        <h1 className="text-xl font-bold text-gray-700 flex items-center gap-2">
+          <User className="text-emerald-600" /> Profil Saya
+        </h1>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        
         {/* KARTU 1: Data Pengguna & Edit Profile */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 h-fit">
-          <div className="flex justify-between items-center border-b pb-2 mb-4">
-            <h2 className="text-lg font-semibold text-blue-600">
-              Data Pengguna
-            </h2>
-            {/* Tombol Toggle Edit */}
-            {!isEditing && (
-              <button 
-                onClick={handleEditClick}
-                className="text-gray-400 hover:text-blue-600 transition"
-                title="Edit Profil"
-              >
-                <Pencil size={18} />
-              </button>
-            )}
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm text-gray-500 block mb-1">Username</label>
-              
+        <Card className="h-fit shadow-sm border-gray-100">
+          <CardHeader className="border-b border-gray-50 pb-4">
+            <div className="flex justify-between items-center">
+              <CardTitle className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                Data Pengguna
+              </CardTitle>
+              {!isEditing && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleEditClick}
+                  className="text-gray-400 hover:text-emerald-600 hover:bg-emerald-50"
+                  title="Edit Profil"
+                >
+                  <Pencil size={18} />
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="pt-6 space-y-5">
+            {/* Username Field */}
+            <div className="space-y-2">
+              <Label className="text-gray-500 font-medium">Username</Label>
               {isEditing ? (
-                // Tampilan Mode Edit
                 <div className="flex gap-2 items-center">
-                  <input 
-                    type="text" 
+                  <Input
                     value={editUsername}
                     onChange={(e) => setEditUsername(e.target.value)}
-                    className="border border-blue-300 rounded px-3 py-1 text-gray-800 w-full focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    className="focus-visible:ring-emerald-500"
                   />
-                  <button 
-                    onClick={handleSaveProfile} 
+                  <Button
+                    size="icon"
+                    onClick={handleSaveProfile}
                     disabled={isSavingProfile}
-                    className="bg-blue-600 text-white p-1.5 rounded hover:bg-blue-700 disabled:opacity-50"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white shrink-0"
                   >
-                    {isSavingProfile ? <Loader2 size={16} className="animate-spin"/> : <Check size={16} />}
-                  </button>
-                  <button 
+                    {isSavingProfile ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="outline"
                     onClick={handleCancelEdit}
                     disabled={isSavingProfile}
-                    className="bg-gray-200 text-gray-600 p-1.5 rounded hover:bg-gray-300"
+                    className="shrink-0"
                   >
                     <X size={16} />
-                  </button>
+                  </Button>
                 </div>
               ) : (
-                // Tampilan Mode Baca (Normal)
-                <p className="font-medium text-gray-800 text-lg">{profile?.username}</p>
+                <p className="font-semibold text-gray-800 text-lg">{profile?.username}</p>
               )}
             </div>
 
+            {/* Role & ID */}
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm text-gray-500 block">Role</label>
-                <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded mt-1 font-semibold uppercase">
-                  {profile?.role}
-                </span>
+              <div className="space-y-1">
+                <Label className="text-gray-500 text-xs uppercase tracking-wider">Role</Label>
+                <div>
+                  <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 hover:bg-emerald-200 uppercase">
+                    {profile?.role}
+                  </Badge>
+                </div>
               </div>
-              <div>
-                <label className="text-sm text-gray-500 block">ID Sistem</label>
-                <p className="font-medium text-gray-800">#{profile?.id}</p>
-              </div>
-            </div>
-
-            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mt-2">
-              <label className="text-sm text-gray-500 block mb-2 font-semibold">Informasi Kartu RFID</label>
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-mono text-gray-700 bg-white px-2 py-1 rounded border">
-                    {profile?.kartuUid || "Belum ada kartu"}
-                </span>
-                <span className="text-xs text-gray-400">ID: {profile?.kartuId}</span>
+              <div className="space-y-1">
+                <Label className="text-gray-500 text-xs uppercase tracking-wider">ID Sistem</Label>
+                <p className="font-mono font-medium text-gray-700">#{profile?.id}</p>
               </div>
             </div>
 
-            <div>
-              <label className="text-sm text-gray-500 block">Bergabung Sejak</label>
-              <p className="text-sm text-gray-700">
-                {profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString('id-ID', {
-                  day: 'numeric', month: 'long', year: 'numeric'
+            {/* Info Kartu RFID */}
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-white rounded-lg shadow-sm text-emerald-600 border border-slate-100">
+                  <CreditCard size={20} />
+                </div>
+                <div className="flex-1">
+                  <Label className="text-gray-600 font-semibold">Kartu Akses RFID</Label>
+                  <div className="flex justify-between items-center mt-1">
+                    <span className="font-mono text-sm font-bold text-gray-800 tracking-wide">
+                      {profile?.kartuUid ? profile.kartuUid.split(":").join(" : ") : "Belum terhubung"}
+                    </span>
+                    {profile?.kartuId && (
+                      <span className="text-[10px] text-gray-400 bg-white px-2 py-0.5 rounded border">
+                        ID: {profile?.kartuId}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-gray-50">
+              <p className="text-xs text-gray-400 text-center">
+                Bergabung sejak {profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString("id-ID", {
+                  day: "numeric", month: "long", year: "numeric",
                 }) : "-"}
               </p>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* KARTU 2: Ganti Password */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 h-fit">
-          <h2 className="text-lg font-semibold mb-4 text-orange-600 border-b pb-2">
-            Keamanan (Ganti Password)
-          </h2>
+        <Card className="h-fit shadow-sm border-gray-100">
+          <CardHeader className="border-b border-gray-50 pb-4">
+            <CardTitle className="text-lg font-bold text-gray-800 flex items-center gap-2">
+              <ShieldCheck className="text-orange-500" />
+              Keamanan Akun
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <form onSubmit={handleSubmitPassword} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="oldPassword">Password Lama</Label>
+                <Input
+                  id="oldPassword"
+                  type="password"
+                  name="oldPassword"
+                  value={passForm.oldPassword}
+                  onChange={handlePassChange}
+                  required
+                  placeholder="Masukkan password saat ini"
+                  className="focus-visible:ring-emerald-500"
+                />
+              </div>
 
-          <form onSubmit={handleSubmitPassword} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Password Lama</label>
-              <input
-                type="password"
-                name="oldPassword"
-                value={passForm.oldPassword}
-                onChange={handlePassChange}
-                required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition text-sm"
-                placeholder="Masukkan password saat ini"
-              />
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="newPassword">Password Baru</Label>
+                <Input
+                  id="newPassword"
+                  type="password"
+                  name="newPassword"
+                  value={passForm.newPassword}
+                  onChange={handlePassChange}
+                  required
+                  placeholder="Minimal 6 karakter"
+                  className="focus-visible:ring-emerald-500"
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Password Baru</label>
-              <input
-                type="password"
-                name="newPassword"
-                value={passForm.newPassword}
-                onChange={handlePassChange}
-                required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition text-sm"
-                placeholder="Minimal 6 karakter"
-              />
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Konfirmasi Password Baru</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  name="confirmPassword"
+                  value={passForm.confirmPassword}
+                  onChange={handlePassChange}
+                  required
+                  placeholder="Ulangi password baru"
+                  className={`focus-visible:ring-emerald-500 ${
+                    passForm.confirmPassword && passForm.newPassword !== passForm.confirmPassword
+                      ? "border-red-500 focus-visible:ring-red-500"
+                      : ""
+                  }`}
+                />
+                {passForm.confirmPassword && passForm.newPassword !== passForm.confirmPassword && (
+                  <p className="text-xs text-red-500">Password tidak cocok</p>
+                )}
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Konfirmasi Password Baru</label>
-              <input
-                type="password"
-                name="confirmPassword"
-                value={passForm.confirmPassword}
-                onChange={handlePassChange}
-                required
-                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:outline-none transition text-sm ${
-                  passForm.confirmPassword && passForm.newPassword !== passForm.confirmPassword
-                    ? "border-red-500 focus:ring-red-500"
-                    : "border-gray-300 focus:ring-blue-500"
-                }`}
-                placeholder="Ulangi password baru"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={isSubmittingPass}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {isSubmittingPass && <Loader2 className="animate-spin" size={16} />}
-              {isSubmittingPass ? "Menyimpan..." : "Simpan Password Baru"}
-            </button>
-          </form>
-        </div>
+              <Button
+                type="submit"
+                disabled={isSubmittingPass}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+              >
+                {isSubmittingPass && <Loader2 className="animate-spin mr-2" size={16} />}
+                {isSubmittingPass ? "Menyimpan..." : "Simpan Password Baru"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

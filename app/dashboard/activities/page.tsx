@@ -14,7 +14,9 @@ import {
   Trash,
   Pencil,
   Clock,
-  ArrowRight
+  ArrowRight,
+  RotateCcw, // 1. Import Icon Reset
+  Filter
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,7 +46,7 @@ import { PaginationControls } from "@/components/shared/PaginationControls";
 import { SelectBox, DateInput, StatusSelect } from "./_components/activity-filter-parts";
 import { EditNoteDialog, ActivityStats } from "./_components/activity-form";
 
-// 1. Import Store
+// Import Store
 import { useSearchStore } from "@/store/useSearchStore"; 
 
 export default function ActivityPage() {
@@ -52,7 +54,7 @@ export default function ActivityPage() {
   const [loading, setLoading] = useState(true);
   const [noteDialog, setNoteDialog] = useState({ open: false, id: 0, val: "" });
 
-  // 2. Ambil Global State Search
+  // Ambil Global State Search
   const globalSearchQuery = useSearchStore((state) => state.searchQuery);
   const setGlobalSearchQuery = useSearchStore((state) => state.setSearchQuery);
 
@@ -67,18 +69,32 @@ export default function ActivityPage() {
   const { paginatedData, currentPage, limit, setSearchQuery } = pagination;
   const connectionRef = useRef<HubConnection | null>(null);
 
-  // 3. Reset Search Header saat halaman dimuat/ditinggalkan
+  // Reset Search Header saat halaman dimuat/ditinggalkan
   useEffect(() => {
     setGlobalSearchQuery("");
     return () => setGlobalSearchQuery("");
   }, [setGlobalSearchQuery]);
 
-  // 4. Sinkronisasi: Header ketik -> Pagination filter
+  // Sinkronisasi: Header ketik -> Pagination filter
   useEffect(() => {
     setSearchQuery(globalSearchQuery);
   }, [globalSearchQuery, setSearchQuery]);
 
-  // --- Helper Functions ---
+  // --- 2. FUNGSI RESET FILTER ---
+  const handleResetFilters = () => {
+    // Reset Global Search (Header)
+    setGlobalSearchQuery("");
+    
+    // Reset Filter Dropdown & Tanggal
+    // Kita panggil handleFilterChange untuk setiap key agar state di hook ter-update
+    ["lab", "kelas", "user", "status", "startDate", "endDate"].forEach((key) => {
+      handleFilterChange({ target: { name: key, value: "" } });
+    });
+
+    toast.info("Filter telah di-reset");
+  };
+
+  // --- Helper Functions (Tetap) ---
   const calculateDuration = (start: string, end: string) => {
     if (!end || new Date(end).getFullYear() === 1 || start === end) return "Berjalan...";
     const diff = Math.floor((new Date(end).getTime() - new Date(start).getTime()) / 60000);
@@ -231,15 +247,30 @@ export default function ActivityPage() {
           <Activity className="text-emerald-600" /> Log Aktivitas Lab
         </h1>
         <div className="flex gap-2">
-           {/* Tombol Excel saja, Input Search sudah di Header */}
           <Button onClick={() => exportAktivitasToExcel(filteredData)} variant="outline" size="sm" className="gap-2 text-emerald-700 border-emerald-200 hover:bg-emerald-50">
             Excel <Download size={16} />
           </Button>
         </div>
       </div>
 
-      {/* Filter & Stats Section */}
+      {/* 3. Filter & Stats Section (Updated) */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-6">
+        
+        {/* Header Filter dengan Tombol Reset */}
+        <div className="flex justify-between items-center border-b border-gray-100 pb-4">
+          <h3 className="font-semibold text-gray-700 flex items-center gap-2">
+            <Filter size={18} className="text-emerald-600"/> Filter Data
+          </h3>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={handleResetFilters}
+            className="text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 h-8 px-3 text-xs"
+          >
+            <RotateCcw size={14} className="mr-2" /> Reset Filter
+          </Button>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <SelectBox label="Lab" name="lab" val={filters.lab} fn={handleFilterChange} opts={options.labs} k="nama" />
           <SelectBox label="Kelas" name="kelas" val={filters.kelas} fn={handleFilterChange} opts={options.kelas} k="nama" />
@@ -248,6 +279,7 @@ export default function ActivityPage() {
           <DateInput label="Sampai" name="endDate" val={filters.endDate} fn={handleFilterChange} />
           <StatusSelect val={filters.status} fn={(v) => handleFilterChange({ target: { name: "status", value: v } })} />
         </div>
+        
         <ActivityStats stats={stats} />
       </div>
 
