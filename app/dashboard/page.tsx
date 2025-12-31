@@ -172,7 +172,7 @@ export default function DashboardPage() {
             color="bg-orange-500" // Orange untuk waktu/kelas
           />
           <StatCard
-            title="Total Akses (Hari Ini)"
+            title="Total Akses"
             value={stats.totalAkses || 0}
             Icon={Check}
             color="bg-indigo-500" // Indigo untuk data akumulasi
