@@ -221,31 +221,21 @@ export default function ActivityPage() {
   };
 
   const handleDeleteAll = async () => {
-    // 1. Ambil ID hanya dari data yang terfilter
     const idsToDelete = filteredData.map((item: any) => item.id);
-
     if (idsToDelete.length === 0) {
       toast.error("Tidak ada data untuk dihapus.");
       return;
     }
 
-    // 2. Tentukan Mode: Apakah Filter Aktif?
     const isFiltered = filteredData.length !== data.length;
-
-    // CATATAN: Tidak ada confirm() lagi di sini, karena sudah ada <AlertDialog> di UI.
-    
     toast.loading(isFiltered ? "Menghapus data terfilter..." : "Mereset semua data...", { id: "all" });
 
     try {
       if (isFiltered) {
-        // Hapus sesuai filter (loop deleteById)
         await Promise.all(idsToDelete.map((id: string) => activityService.deleteById(id)));
-        
-        // Update state lokal
         setData((prev) => prev.filter((item) => !idsToDelete.includes(item.id)));
         toast.success(`${idsToDelete.length} data terfilter berhasil dihapus.`);
       } else {
-        // Reset Total (deleteAll)
         const res = await activityService.deleteAll();
         if (res.success) {
           setData([]);
@@ -306,18 +296,16 @@ export default function ActivityPage() {
         <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
           <div className="flex justify-between items-center p-4 border-b bg-gray-50/50">
              <h3 className="font-bold text-gray-700 text-sm uppercase tracking-wide">Data Akses Terkini</h3>
-             
-             {/* --- ALERT DIALOG UNTUK DELETE ALL / FILTERED --- */}
+
              <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="text-red-500 hover:text-red-600 hover:bg-red-50 text-xs h-8" 
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-red-500 hover:text-red-600 hover:bg-red-50 text-xs h-8"
                   disabled={filteredData.length === 0}
                 >
-                  {/* Teks Tombol Dinamis */}
-                  {filteredData.length !== data.length ? `Hapus Terfilter (${filteredData.length})` : "Reset Semua Log"} 
+                  {filteredData.length !== data.length ? `Hapus Terfilter (${filteredData.length})` : "Reset Semua Log"}
                   <Trash size={12} className="ml-2"/>
                 </Button>
               </AlertDialogTrigger>
@@ -332,8 +320,8 @@ export default function ActivityPage() {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Batal</AlertDialogCancel>
-                  <AlertDialogAction 
-                    onClick={handleDeleteAll} 
+                  <AlertDialogAction
+                    onClick={handleDeleteAll}
                     className="bg-red-600 hover:bg-red-700 text-white"
                   >
                     Ya, Hapus {filteredData.length} Data
@@ -341,8 +329,6 @@ export default function ActivityPage() {
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
-            {/* ----------------------------------------------- */}
-
           </div>
 
           <Table>
@@ -416,19 +402,21 @@ export default function ActivityPage() {
                     </TableCell>
 
                     <TableCell className="align-middle">
-                      <div className="flex items-center justify-between gap-2 group/note relative h-full">
-                        <div className="text-sm text-gray-600 truncate max-w-[200px]" title={item.keterangan}>
+                      {/* Flex container tanpa absolute agar tombol selalu di samping teks */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-sm text-gray-600 truncate max-w-[180px]" title={item.keterangan}>
                           {item.keterangan || <span className="text-gray-300 italic text-xs font-light">Tidak ada catatan</span>}
                         </div>
 
+                        {/* Tombol selalu terlihat (opacity-0 dihapus) */}
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-6 w-6 opacity-0 group-hover/note:opacity-100 transition-opacity text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 absolute right-0 bg-white/80 backdrop-blur-sm"
+                          className="h-7 w-7 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 shrink-0"
                           onClick={() => setNoteDialog({ open: true, id: item.id, val: item.keterangan || "" })}
                           title="Edit Keterangan"
                         >
-                          <Pencil size={12} />
+                          <Pencil size={14} />
                         </Button>
                       </div>
                     </TableCell>
@@ -441,7 +429,7 @@ export default function ActivityPage() {
                         onClick={() => handleDelete(item.id)}
                         title="Hapus Baris Ini"
                       >
-                        <Trash size={14} />
+                        <Trash size={16} />
                       </Button>
                     </TableCell>
                   </TableRow>
