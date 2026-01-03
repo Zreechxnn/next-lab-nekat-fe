@@ -41,14 +41,14 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useLocalPagination } from "@/hooks/useLocalPagination";
 import { PaginationControls } from "@/components/shared/PaginationControls";
-import RoleBasedGuard from "@/components/shared/RoleBasedGuard"; // 1. Import RBAC Guard
+import RoleBasedGuard from "@/components/shared/RoleBasedGuard";
 
 // Import komponen modular
 import { SelectBox, DateInput, StatusSelect } from "./_components/activity-filter-parts";
 import { EditNoteDialog, ActivityStats } from "./_components/activity-form";
 
 // Import Store
-import { useSearchStore } from "@/store/useSearchStore"; 
+import { useSearchStore } from "@/store/useSearchStore";
 
 export default function ActivityPage() {
   const [data, setData] = useState<any[]>([]);
@@ -221,22 +221,46 @@ export default function ActivityPage() {
   };
 
   const handleDeleteAll = async () => {
-    toast.loading("Mereset database...", { id: "all" });
+    // 1. Ambil ID hanya dari data yang terfilter
+    const idsToDelete = filteredData.map((item: any) => item.id);
+
+    if (idsToDelete.length === 0) {
+      toast.error("Tidak ada data untuk dihapus.");
+      return;
+    }
+
+    // 2. Tentukan Mode: Apakah Filter Aktif?
+    const isFiltered = filteredData.length !== data.length;
+
+    // CATATAN: Tidak ada confirm() lagi di sini, karena sudah ada <AlertDialog> di UI.
+    
+    toast.loading(isFiltered ? "Menghapus data terfilter..." : "Mereset semua data...", { id: "all" });
+
     try {
-      const res = await activityService.deleteAll();
-      if (res.success) {
-        setData([]);
-        toast.success("Semua data berhasil dihapus.");
+      if (isFiltered) {
+        // Hapus sesuai filter (loop deleteById)
+        await Promise.all(idsToDelete.map((id: string) => activityService.deleteById(id)));
+        
+        // Update state lokal
+        setData((prev) => prev.filter((item) => !idsToDelete.includes(item.id)));
+        toast.success(`${idsToDelete.length} data terfilter berhasil dihapus.`);
+      } else {
+        // Reset Total (deleteAll)
+        const res = await activityService.deleteAll();
+        if (res.success) {
+          setData([]);
+          toast.success("Semua data berhasil dihapus.");
+        }
       }
     } catch (e) {
-      toast.error("Gagal mereset data.");
+      console.error(e);
+      toast.error("Gagal menghapus beberapa data.");
     } finally {
       toast.dismiss("all");
     }
   };
 
   return (
-    // 2. Bungkus dengan Guard agar Siswa tidak bisa akses
     <RoleBasedGuard allowedRoles={["admin", "operator", "guru"]}>
       <div className="space-y-6 pb-10 font-sans">
         {/* Header Section */}
@@ -257,9 +281,9 @@ export default function ActivityPage() {
             <h3 className="font-semibold text-gray-700 flex items-center gap-2">
               <Filter size={18} className="text-emerald-600"/> Filter Data
             </h3>
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={handleResetFilters}
               className="text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 h-8 px-3 text-xs"
             >
@@ -282,23 +306,43 @@ export default function ActivityPage() {
         <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
           <div className="flex justify-between items-center p-4 border-b bg-gray-50/50">
              <h3 className="font-bold text-gray-700 text-sm uppercase tracking-wide">Data Akses Terkini</h3>
+             
+             {/* --- ALERT DIALOG UNTUK DELETE ALL / FILTERED --- */}
              <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-600 hover:bg-red-50 text-xs h-8" disabled={data.length === 0}>
-                   Reset Semua Log <Trash size={12} className="ml-2"/>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-red-500 hover:text-red-600 hover:bg-red-50 text-xs h-8" 
+                  disabled={filteredData.length === 0}
+                >
+                  {/* Teks Tombol Dinamis */}
+                  {filteredData.length !== data.length ? `Hapus Terfilter (${filteredData.length})` : "Reset Semua Log"} 
+                  <Trash size={12} className="ml-2"/>
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Hapus Seluruh Data?</AlertDialogTitle>
-                  <AlertDialogDescription>Tindakan ini akan menghapus semua riwayat akses secara permanen.</AlertDialogDescription>
+                  <AlertDialogTitle>
+                    {filteredData.length !== data.length ? "Hapus Data Terfilter?" : "Hapus Seluruh Data?"}
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Anda akan menghapus **{filteredData.length}** baris data yang tampil saat ini. Tindakan ini tidak bisa dibatalkan.
+                  </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Batal</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDeleteAll} className="bg-red-600 hover:bg-red-700">Ya, Hapus Semua</AlertDialogAction>
+                  <AlertDialogAction 
+                    onClick={handleDeleteAll} 
+                    className="bg-red-600 hover:bg-red-700 text-white"
+                  >
+                    Ya, Hapus {filteredData.length} Data
+                  </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
+            {/* ----------------------------------------------- */}
+
           </div>
 
           <Table>
@@ -360,14 +404,14 @@ export default function ActivityPage() {
 
                     <TableCell>
                       <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 w-fit px-2.5 py-1 rounded-full border border-emerald-100">
-                         <Clock size={12} />
-                         {calculateDuration(item.timestampMasuk, item.timestampKeluar)}
+                          <Clock size={12} />
+                          {calculateDuration(item.timestampMasuk, item.timestampKeluar)}
                       </div>
                     </TableCell>
 
                     <TableCell>
                       <Badge variant={isCheckOut ? "secondary" : "default"} className={`text-[10px] px-2 py-0.5 shadow-none ${isCheckOut ? 'bg-gray-100 text-gray-500 hover:bg-gray-200 border-gray-200' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-emerald-200'}`}>
-                         {isCheckOut ? "SELESAI" : "AKTIF"}
+                          {isCheckOut ? "SELESAI" : "AKTIF"}
                       </Badge>
                     </TableCell>
 
