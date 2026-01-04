@@ -76,7 +76,6 @@ export default function ActivityPage() {
     return () => setGlobalSearchQuery("");
   }, [setGlobalSearchQuery]);
 
-  // Sinkronisasi: Header ketik -> Pagination filter
   useEffect(() => {
     setSearchQuery(globalSearchQuery);
   }, [globalSearchQuery, setSearchQuery]);
