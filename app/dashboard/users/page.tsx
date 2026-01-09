@@ -4,23 +4,29 @@
 import { useLocalPagination } from "@/hooks/useLocalPagination";
 import { userService } from "@/services/user.service";
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
-import { AxiosError } from "axios";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { 
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle 
+} from "@/components/ui/alert-dialog";
 import { PaginationControls } from "@/components/shared/PaginationControls";
-import { Edit, Plus, Trash, Users } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Users, Plus } from "lucide-react";
 import UserForm from "./_components/UserForm";
-import { useSearchStore } from "@/store/useSearchStore"; // Import
+import { useSearchStore } from "@/store/useSearchStore";
+
+// IMPORT KOMPONEN BARU
+import { UserCard } from "./_components/user-card";
+import { UserTable } from "./_components/user-table";
 
 export default function UsersPage() {
   const queryClient = useQueryClient();
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
-  const [filteredData, setFilteredData] = useState<any[]>([]);
+  
+  // State untuk Dialog Hapus (Centralized)
+  const [deleteDialog, setDeleteDialog] = useState({ open: false, id: 0, username: "" });
 
   // Global Search
   const globalSearchQuery = useSearchStore((state) => state.searchQuery);
@@ -32,17 +38,14 @@ export default function UsersPage() {
     placeholderData: keepPreviousData,
   });
 
-  useEffect(() => {
-    if (data?.data) setFilteredData(data.data);
-  }, [data]);
-
+  // Reset Search Header saat mount
   useEffect(() => {
     setGlobalSearchQuery("");
     return () => setGlobalSearchQuery("");
   }, [setGlobalSearchQuery]);
 
   const pagination = useLocalPagination({
-    initialData: filteredData,
+    initialData: data?.data || [],
     itemsPerPage: 15,
     searchKeys: ["username", "role"],
   });
@@ -57,76 +60,96 @@ export default function UsersPage() {
     mutationFn: async (id: number) => userService.deleteById(String(id)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
-      toast.success("Berhasil menghapus data user!");
+      toast.success("User berhasil dihapus!");
+      setDeleteDialog({ open: false, id: 0, username: "" });
     },
-    onError: (err) => {
-      if (err instanceof AxiosError) toast.error(err.response?.data.message || "Terjadi kesalahan!");
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || "Gagal menghapus user.");
     },
   });
 
-  return (
-    <div className="flex flex-col gap-6 font-sans">
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
-        <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center gap-4">
-          <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-            <Users className="text-indigo-600" />
-            Daftar Pengguna
-          </h3>
-          {/* Search lokal dihapus */}
-          <Button onClick={() => { setSelectedUser(null); setIsModalOpen(true); }} className="bg-indigo-600 hover:bg-indigo-700 text-white">
-            <Plus size={16} className="mr-2" /> Tambah
-          </Button>
-        </div>
+  // Handlers
+  const openCreate = () => { setSelectedUser(null); setIsFormOpen(true); };
+  const openEdit = (item: any) => { setSelectedUser(item); setIsFormOpen(true); };
+  const openDelete = (id: number, username: string) => { setDeleteDialog({ open: true, id, username }); };
 
-        <Table className="min-w-[800px]">
-          <TableHeader>
-            <TableRow className="bg-gray-50/50">
-              <TableHead className="w-16 text-center font-bold text-gray-600">NO</TableHead>
-              <TableHead className="font-bold text-gray-600">USERNAME</TableHead>
-              <TableHead className="font-bold text-gray-600">ROLE</TableHead>
-              <TableHead className="text-center font-bold text-gray-600 w-32">AKSI</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow><TableCell colSpan={4} className="py-10 text-center text-muted-foreground animate-pulse">Sedang memuat data user...</TableCell></TableRow>
-            ) : filteredData.length === 0 ? (
-              <TableRow><TableCell colSpan={4} className="py-10 text-center text-muted-foreground">Tidak ada data user ditemukan.</TableCell></TableRow>
-            ) : (
-              paginatedData.map((item: any, idx: number) => (
-                <TableRow key={item.id} className="hover:bg-indigo-50/30 transition-colors border-b border-gray-50">
-                  <TableCell className="text-center font-medium text-gray-500">{(currentPage - 1) * limit + idx + 1}</TableCell>
-                  <TableCell className="font-semibold text-gray-800">{item.username}</TableCell>
-                  <TableCell>
-                    <Badge variant="secondary" className={`${item.role === "admin" ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"}`}>
-                      {item.role}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-center space-x-2">
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50" onClick={() => { setSelectedUser(item); setIsModalOpen(true); }}><Edit size={16} /></Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild><Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"><Trash size={16} /></Button></AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Hapus User?</AlertDialogTitle>
-                          <AlertDialogDescription>User <b>{item.username}</b> akan dihapus permanen.</AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Batal</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => deleteMutation.mutate(item.id)} className="bg-red-600 hover:bg-red-700">Hapus</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+  return (
+    <div className="flex flex-col gap-6 font-sans pb-20">
+      
+      {/* Header Section */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+           <div className="bg-indigo-100 p-2 rounded-lg">
+             <Users className="text-indigo-600" size={20} />
+           </div>
+           Daftar Pengguna
+        </h3>
+        <Button onClick={openCreate} className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-100 shadow-lg">
+          <Plus size={18} className="mr-2" /> Tambah User
+        </Button>
+      </div>
+
+      {/* --- CONTENT AREA --- */}
+
+      {/* Desktop View (Table) */}
+      <UserTable 
+        data={paginatedData}
+        loading={isLoading}
+        page={currentPage}
+        limit={limit}
+        onEdit={openEdit}
+        onConfirmDelete={openDelete}
+      />
+
+      {/* Mobile View (Card) */}
+      <div className="md:hidden space-y-3">
+        {isLoading ? (
+           <div className="text-center py-10 text-gray-400 text-sm">Memuat data...</div>
+        ) : paginatedData.length === 0 ? (
+           <div className="text-center py-10 text-gray-400 italic text-sm">Tidak ada data user.</div>
+        ) : (
+           paginatedData.map((item: any, index: number) => (
+             <UserCard 
+                key={item.id} 
+                item={item} 
+                index={(currentPage - 1) * limit + index} 
+                onEdit={openEdit} 
+                onConfirmDelete={openDelete} 
+             />
+           ))
+        )}
       </div>
 
       <PaginationControls {...pagination} />
-      <UserForm isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} initialData={selectedUser} />
+      
+      {/* Form Dialog */}
+      <UserForm 
+        isOpen={isFormOpen} 
+        onClose={() => setIsFormOpen(false)} 
+        initialData={selectedUser} 
+      />
+
+      {/* Delete Dialog (Global) */}
+      <AlertDialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog(prev => ({ ...prev, open }))}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus User?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Anda yakin ingin menghapus user <b>{deleteDialog.username}</b>? Tindakan ini tidak dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => deleteMutation.mutate(deleteDialog.id)} 
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deleteMutation.isPending ? "Menghapus..." : "Ya, Hapus"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 }
