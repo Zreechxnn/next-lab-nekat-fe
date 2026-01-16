@@ -40,10 +40,24 @@ export const exportAktivitasToExcel = (data: any) => {
 
   // --- Mapping Data ---
   const excelData = data.map((item: any, index: any) => {
-    // Logic user
-    const pemilik = item.userUsername
-      ? `User: ${item.userUsername}`
-      : item.kelasNama || "-";
+    
+    // --- PERBAIKAN LOGIKA PEMILIK ---
+    let identitas = "-";
+    let subInfo = "";
+
+    if (item.userUsername) {
+        // Jika User
+        identitas = item.userUsername;
+        
+        // Cek jika user punya kelas
+        if (item.userKelasNama) {
+            subInfo = ` (${item.userKelasNama})`; 
+        }
+    } else if (item.kelasNama) {
+        // Jika Kartu Kelas
+        identitas = item.kelasNama;
+        subInfo = " (Kartu Kelas)";
+    }
 
     const kartuIdFormatted = item.kartuUid
       ? item.kartuUid.split(":").join(" : ")
@@ -51,18 +65,18 @@ export const exportAktivitasToExcel = (data: any) => {
 
     return {
       No: index + 1,
+      "Identitas": identitas + subInfo, // Gabung Nama + Kelas
+      "Lab": item.ruanganNama || "-",
       "Kartu ID": kartuIdFormatted,
-      Lab: item.ruanganNama || "-",
-      "Kelas/User": pemilik,
       "Waktu Masuk": formatTime(item.timestampMasuk),
       "Waktu Keluar":
         item.timestampKeluar &&
         new Date(item.timestampKeluar).getFullYear() !== 1
           ? formatTime(item.timestampKeluar)
           : "-",
-      Durasi: getDuration(item.timestampMasuk, item.timestampKeluar),
-      Status: getStatus(item.timestampMasuk, item.timestampKeluar),
-      Keterangan: item.keterangan || "-", 
+      "Durasi": getDuration(item.timestampMasuk, item.timestampKeluar),
+      "Status": getStatus(item.timestampMasuk, item.timestampKeluar),
+      "Catatan": item.keterangan || "-",
     };
   });
 
@@ -70,14 +84,14 @@ export const exportAktivitasToExcel = (data: any) => {
 
   const wscols = [
     { wch: 5 },  // No
-    { wch: 20 }, // Kartu ID
+    { wch: 30 }, // Identitas (Lebih lebar karena ada nama + kelas)
     { wch: 20 }, // Lab
-    { wch: 25 }, // Kelas/User
+    { wch: 20 }, // Kartu ID
     { wch: 20 }, // Masuk
     { wch: 20 }, // Keluar
     { wch: 15 }, // Durasi
     { wch: 15 }, // Status
-    { wch: 30 }, // Keterangan (Lebar extra untuk teks panjang)
+    { wch: 30 }, // Catatan
   ];
   worksheet["!cols"] = wscols;
 
@@ -85,7 +99,7 @@ export const exportAktivitasToExcel = (data: any) => {
   XLSX.utils.book_append_sheet(workbook, worksheet, "Data Aktivitas");
 
   // --- Download File ---
-  const fileName = `Laporan_Aktivitas_${new Date()
+  const fileName = `Laporan_Lab_${new Date()
     .toISOString()
     .slice(0, 10)}.xlsx`;
   XLSX.writeFile(workbook, fileName);
