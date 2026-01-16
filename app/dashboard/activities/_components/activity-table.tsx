@@ -45,13 +45,13 @@ export function ActivityTable({ data, loading, page, limit, onEdit, onDelete }: 
                        <span className="font-semibold text-gray-800 text-sm">
                          {item.userUsername ?? item.kelasNama}
                        </span>
-                       
-                       {/* TAMPILKAN KELAS USER JIKA ADA */}
-                       {item.userUsername && item.userKelasNama && (
+
+                       {/* KELAS USER DISEMBUNYIKAN */}
+                       {/* {item.userUsername && item.userKelasNama && (
                          <span className="text-[10px] text-indigo-600 font-semibold">
                            {item.userKelasNama}
                          </span>
-                       )}
+                       )} */}
 
                        <span className="text-[10px] text-gray-500 font-mono border rounded w-fit px-1 bg-gray-50 mt-1">
                          {item.kartuUid}

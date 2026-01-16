@@ -21,16 +21,15 @@ export function UserTable({ data, loading, page, limit, onEdit, onConfirmDelete 
             <TableHead className="w-16 text-center font-bold text-gray-600">No</TableHead>
             <TableHead className="font-bold text-gray-600">Username</TableHead>
             <TableHead className="font-bold text-gray-600">Role</TableHead>
-            {/* Kolom Baru */}
-            <TableHead className="font-bold text-gray-600">Kelas</TableHead>
+            {/* HEADER KELAS DIHAPUS */}
             <TableHead className="text-center font-bold text-gray-600 w-[140px]">Aksi</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {loading ? (
-            <TableRow><TableCell colSpan={5} className="py-12 text-center text-gray-500">Memuat data pengguna...</TableCell></TableRow>
+            <TableRow><TableCell colSpan={4} className="py-12 text-center text-gray-500">Memuat data pengguna...</TableCell></TableRow>
           ) : data.length === 0 ? (
-            <TableRow><TableCell colSpan={5} className="py-12 text-center text-gray-400 italic">Data pengguna kosong.</TableCell></TableRow>
+            <TableRow><TableCell colSpan={4} className="py-12 text-center text-gray-400 italic">Data pengguna kosong.</TableCell></TableRow>
           ) : (
             data.map((item, idx) => (
               <TableRow key={item.id} className="hover:bg-indigo-50/30 transition-colors">
@@ -43,23 +42,16 @@ export function UserTable({ data, loading, page, limit, onEdit, onConfirmDelete 
                 <TableCell>
                   <Badge variant="secondary" className={`
                     px-2.5 py-0.5 rounded-md font-medium
-                    ${item.role === "admin" ? "bg-purple-100 text-purple-700" : 
+                    ${item.role === "admin" ? "bg-purple-100 text-purple-700" :
                       item.role === "guru" ? "bg-orange-100 text-orange-700" :
                       "bg-blue-100 text-blue-700"}
                   `}>
                     {item.role}
                   </Badge>
                 </TableCell>
-                {/* Data Kelas */}
-                <TableCell>
-                   {item.kelasNama ? (
-                     <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs font-semibold border border-gray-200">
-                       {item.kelasNama}
-                     </span>
-                   ) : (
-                     <span className="text-gray-400 text-xs italic">-</span>
-                   )}
-                </TableCell>
+                
+                {/* CELL KELAS DIHAPUS */}
+
                 <TableCell>
                   <div className="flex justify-center gap-1">
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600 hover:bg-indigo-50" onClick={() => onEdit(item)}>

@@ -3,13 +3,12 @@
 
 import { User } from "@/types/user";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
-import { useForm, useWatch } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
 import { userService } from "@/services/user.service";
 import { authService } from "@/services/auth.service";
-import { classService } from "@/services/class.service"; // Import Class Service
 import { toast } from "sonner";
 import { AxiosError } from "axios";
 import {
@@ -40,12 +39,12 @@ import {
 import { Button } from "@/components/ui/button";
 
 // Schema Validation
-// Tambahkan kelasId (string dari form, nanti dikonversi ke number)
+// kelasId tetap ada di schema tapi opsional, UI-nya disembunyikan
 const createFormSchema = z.object({
   username: z.string().min(3, "Username minimal 3 karakter."),
   password: z.string().min(6, "Password minimal 6 karakter."),
   role: z.string().min(1, "Role wajib diisi."),
-  kelasId: z.string().optional(), 
+  kelasId: z.string().optional(),
 });
 
 const editFormSchema = z.object({
@@ -75,26 +74,15 @@ export default function UserForm({
       username: "",
       password: "",
       role: "",
-      kelasId: "no-class", // Default value string
+      kelasId: "no-class",
     },
   });
-
-  // Watch role untuk menampilkan field kelas hanya jika role = siswa (Opsional UX)
-  // Tapi untuk sekarang kita tampilkan selalu atau sesuai kebutuhan
-  const selectedRole = useWatch({ control: form.control, name: "role" });
 
   // 1. Ambil Data Roles
   const { data: rolesData } = useQuery({
     queryKey: ["roles"],
     queryFn: async () => await authService.getRoles(),
     staleTime: Infinity,
-  });
-
-  // 2. Ambil Data Kelas untuk Dropdown
-  const { data: classesData } = useQuery({
-    queryKey: ["classes-list"],
-    queryFn: async () => await classService.getAll(),
-    enabled: isOpen, // Hanya fetch saat modal buka
   });
 
   const roles = rolesData?.data || [
@@ -113,10 +101,11 @@ export default function UserForm({
         role: "",
         kelasId: "no-class"
       });
-      
+
       if (initialData) {
         form.setValue("username", initialData.username);
         form.setValue("role", initialData.role);
+        // Tetap set value jika ada, tapi UI tidak muncul
         form.setValue("kelasId", initialData.kelasId ? String(initialData.kelasId) : "no-class");
       }
     }
@@ -124,10 +113,8 @@ export default function UserForm({
 
   const mutation = useMutation({
     mutationFn: async (values: any) => {
-      // Konversi kelasId: jika "no-class" atau string kosong -> null, jika ada angka -> number
-      const finalKelasId = (values.kelasId && values.kelasId !== "no-class") 
-        ? Number(values.kelasId) 
-        : null;
+      // Default null karena UI disembunyikan
+      const finalKelasId = null;
 
       const payload = {
         ...values,
@@ -135,7 +122,6 @@ export default function UserForm({
       };
 
       if (isEditMode) {
-        // Hapus password dari payload edit
         const { password, ...editPayload } = payload;
         return await userService.update(String(initialData.id), editPayload);
       } else {
@@ -216,62 +202,33 @@ export default function UserForm({
               />
             )}
 
-            <div className="grid grid-cols-2 gap-4">
-              {/* Role */}
-              <FormField
-                control={form.control}
-                name="role"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Role</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pilih Role" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {roles.map((role: any) => (
-                          <SelectItem key={role.value} value={role.value}>
-                            {role.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Kelas (Optional / Contextual) */}
-              <FormField
-                control={form.control}
-                name="kelasId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Kelas <span className="text-gray-400 text-xs font-normal">(Opsional)</span></FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pilih Kelas" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="no-class" className="text-gray-500 italic">
-                          -- Tidak ada kelas --
+            {/* Role (Full Width sekarang karena kelas dihapus) */}
+            <FormField
+              control={form.control}
+              name="role"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Role</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih Role" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {roles.map((role: any) => (
+                        <SelectItem key={role.value} value={role.value}>
+                          {role.label}
                         </SelectItem>
-                        {classesData?.data?.map((kls: any) => (
-                          <SelectItem key={kls.id} value={String(kls.id)}>
-                            {kls.nama} <span className="text-gray-400 text-xs">({kls.periodeNama})</span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* FIELD KELAS DISEMBUNYIKAN */}
 
             <DialogFooter className="pt-4">
               <Button type="button" variant="outline" onClick={onClose}>

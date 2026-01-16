@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { User, Edit, Trash, Shield, GraduationCap } from "lucide-react";
+import { User, Edit, Trash, Shield } from "lucide-react"; // GraduationCap dihapus
 
 interface UserCardProps {
   item: any;
@@ -28,8 +28,8 @@ export function UserCard({ item, index, onEdit, onConfirmDelete }: UserCardProps
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 mt-1">
-        {/* Role */}
+      <div className="grid grid-cols-1 mt-1">
+        {/* Role - Grid jadi 1 kolom karena kelas dihapus */}
         <div className="flex flex-col gap-1 bg-gray-50 p-2 rounded-lg">
           <div className="flex items-center gap-1 text-[10px] text-gray-500 uppercase tracking-wider">
              <Shield size={10} /> Role
@@ -44,15 +44,7 @@ export function UserCard({ item, index, onEdit, onConfirmDelete }: UserCardProps
           </div>
         </div>
 
-        {/* Kelas (Tampilkan jika ada) */}
-        <div className="flex flex-col gap-1 bg-gray-50 p-2 rounded-lg">
-          <div className="flex items-center gap-1 text-[10px] text-gray-500 uppercase tracking-wider">
-             <GraduationCap size={12} /> Kelas
-          </div>
-          <div className="font-semibold text-gray-700 text-sm">
-             {item.kelasNama || "-"}
-          </div>
-        </div>
+        {/* INFO KELAS DISEMBUNYIKAN */}
       </div>
 
       {/* Footer: Actions */}
