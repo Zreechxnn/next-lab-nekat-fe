@@ -46,46 +46,42 @@ export default function Sidebar({
 
   // 2. Konfigurasi Menu dengan Role sesuai Backend
   const menuItems: MenuItem[] = [
-    { 
-      href: "/dashboard", 
-      label: "Dashboard", 
+    {
+      href: "/dashboard",
+      label: "Dashboard",
       icon: LayoutDashboard,
-      // Semua user yang login bisa akses dashboard
+      allowedRoles: ["admin", "operator", "guru", "siswa"]
+    },
+    {
+      href: "/dashboard/activities",
+      label: "Aktivitas Lab",
+      icon: Activity,
+      // PERBAIKAN: Pisahkan string dengan koma di luar kutip
       allowedRoles: ["admin", "operator", "guru", "siswa"] 
     },
-    { 
-      href: "/dashboard/activities", 
-      label: "Aktivitas Lab", 
-      icon: Activity,
-      // AktivitasController: admin, operator, guru
-      allowedRoles: ["admin", "operator", "guru"] 
-    },
-    { 
-      href: "/dashboard/classes", 
-      label: "Data Kelas", 
+    {
+      href: "/dashboard/classes",
+      label: "Data Kelas",
       icon: Book,
-      // KelasController: admin, guru
-      allowedRoles: ["admin", "guru"] 
+      // PERBAIKAN: Hapus spasi berlebih dan pisahkan string
+      allowedRoles: ["admin", "guru", "operator"]
     },
-    { 
-      href: "/dashboard/labs", 
-      label: "Data Lab", 
+    {
+      href: "/dashboard/labs",
+      label: "Data Lab",
       icon: FlaskConical,
-      // RuanganController: Admin (CUD). Kita beri akses Operator untuk view/manage fisik.
-      allowedRoles: ["admin", "operator"] 
+      allowedRoles: ["admin", "operator"]
     },
     { 
       href: "/dashboard/cards", 
       label: "Data Kartu", 
       icon: IdCard,
-      // KartuController: admin, operator
       allowedRoles: ["admin", "operator"] 
     },
     { 
       href: "/dashboard/users", 
       label: "Data User", 
       icon: Users,
-      // UserController: admin only
       allowedRoles: ["admin"] 
     },
   ];
