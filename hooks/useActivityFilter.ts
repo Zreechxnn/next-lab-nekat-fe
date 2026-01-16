@@ -5,6 +5,7 @@ import { userService } from "@/services/user.service";
 import { useState, useEffect, useMemo } from "react";
 
 export function useActivityFilter(rawData: any) {
+  // State Options
   const [options, setOptions] = useState<{
     labs: any[];
     kelas: any[];
@@ -15,6 +16,7 @@ export function useActivityFilter(rawData: any) {
     users: [],
   });
 
+  // State Filters
   const [filters, setFilters] = useState({
     lab: "",
     kelas: "",
@@ -24,6 +26,7 @@ export function useActivityFilter(rawData: any) {
     endDate: "",
   });
 
+  // Fetch Options dari API (Server Side)
   useEffect(() => {
     const fetchOptions = async () => {
       const token = localStorage.getItem("authToken");
@@ -38,6 +41,7 @@ export function useActivityFilter(rawData: any) {
 
         setOptions({
           labs: resLab.success ? resLab.data : [],
+          // Backend harus kirim periodeNama di endpoint /Kelas agar dropdown jelas
           kelas: resKelas.success ? resKelas.data : [],
           users: resUser.success ? resUser.data : [],
         });
@@ -64,26 +68,37 @@ export function useActivityFilter(rawData: any) {
     });
   };
 
+  // --- LOGIKA FILTERING UTAMA ---
   const filteredData = useMemo(() => {
     if (!rawData) return [];
 
     return rawData.filter((item: any) => {
+      
+      // 1. Filter Lab
       if (filters.lab) {
         if (String(item.ruanganId) !== String(filters.lab)) return false;
       }
 
+      // 2. Filter Kelas (PERBAIKAN DISINI)
       if (filters.kelas) {
-        const selectedClassObj = options.kelas.find(
-          (k) => String(k.id) === String(filters.kelas)
-        );
+        const filterId = String(filters.kelas); // ID dari Dropdown (misal "5")
 
-        if (!item.kelasNama) return false;
+        // Ambil ID Kelas dari Kartu Kelas (jika ada)
+        const kartuKelasId = item.kelasId ? String(item.kelasId) : "";
+        
+        // Ambil ID Kelas dari User Siswa (jika ada)
+        const userKelasId = item.userKelasId ? String(item.userKelasId) : "";
 
-        if (selectedClassObj && item.kelasNama !== selectedClassObj.nama)
-          return false;
+        // Logika: Tampilkan jika Kartu Kelas COCOK --ATAU-- Siswa Kelas COCOK
+        const isMatch = kartuKelasId === filterId || userKelasId === filterId;
+
+        if (!isMatch) return false;
       }
 
+      // 3. Filter User
       if (filters.user) {
+        // Bandingkan Username karena di tabel log fieldnya userUsername
+        // Kita cari username dari options berdasarkan ID yang dipilih di dropdown
         const selectedUserObj = options.users.find(
           (u) => String(u.id) === String(filters.user)
         );
@@ -94,6 +109,7 @@ export function useActivityFilter(rawData: any) {
           return false;
       }
 
+      // 4. Filter Status CheckIn/Out
       if (filters.status) {
         const hasCheckout =
           item.timestampKeluar &&
@@ -105,6 +121,7 @@ export function useActivityFilter(rawData: any) {
         if (filters.status === "CHECKOUT" && !isOut) return false;
       }
 
+      // 5. Filter Tanggal
       const itemDate = new Date(item.timestampMasuk);
       itemDate.setHours(0, 0, 0, 0);
 
@@ -122,7 +139,7 @@ export function useActivityFilter(rawData: any) {
 
       return true;
     });
-  }, [rawData, filters, options]); // Tambahkan options ke dependency
+  }, [rawData, filters, options]);
 
   return {
     options,

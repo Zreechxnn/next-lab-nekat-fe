@@ -6,6 +6,7 @@ import { HubConnection, HubConnectionState } from "@microsoft/signalr";
 import { useActivityFilter } from "@/hooks/useActivityFilter";
 import { exportAktivitasToExcel } from "@/utils/exportActivity";
 import { activityService } from "@/services/activity.service";
+import { classService } from "@/services/class.service"; // IMPORT CLASS SERVICE
 import { AxiosError } from "axios";
 import { toast } from "sonner";
 import { Activity, Download, Trash, RotateCcw, Filter } from "lucide-react";
@@ -18,12 +19,13 @@ import { useLocalPagination } from "@/hooks/useLocalPagination";
 import { PaginationControls } from "@/components/shared/PaginationControls";
 import RoleBasedGuard from "@/components/shared/RoleBasedGuard";
 import { useSearchStore } from "@/store/useSearchStore";
+import { useQuery } from "@tanstack/react-query"; // IMPORT USEQUERY
 
-// IMPORT KOMPONEN BARU
+// IMPORT KOMPONEN
 import { SelectBox, DateInput, StatusSelect } from "./_components/activity-filter-parts";
 import { EditNoteDialog, ActivityStats } from "./_components/activity-form";
-import { ActivityCard } from "./_components/activity-card"; // Komponen Mobile
-import { ActivityTable } from "./_components/activity-table"; // Komponen Desktop
+import { ActivityCard } from "./_components/activity-card";
+import { ActivityTable } from "./_components/activity-table";
 
 export default function ActivityPage() {
   const [data, setData] = useState<any[]>([]);
@@ -33,12 +35,39 @@ export default function ActivityPage() {
   const globalSearchQuery = useSearchStore((state) => state.searchQuery);
   const setGlobalSearchQuery = useSearchStore((state) => state.setSearchQuery);
 
+  // Ambil Data Master Kelas untuk Filter Dropdown
+  const { data: classesData } = useQuery({
+    queryKey: ["classes-filter"],
+    queryFn: () => classService.getAll(),
+    staleTime: 1000 * 60 * 5, // Cache 5 menit
+  });
+
   const { options, filters, handleFilterChange, filteredData } = useActivityFilter(data);
+
+  // Gabungkan Opsi Kelas: Prioritaskan dari Master Data agar ada Nama Periodenya
+  const classOptions = useMemo(() => {
+    if (classesData?.success && classesData.data) {
+        return classesData.data.map((c: any) => ({
+            id: c.id,
+            nama: c.nama,
+            periodeNama: c.periodeNama // Pastikan backend kirim ini di getAll Kelas
+        }));
+    }
+    return options.kelas; // Fallback (biasanya kosong dr hook)
+  }, [classesData, options.kelas]);
+
 
   const pagination = useLocalPagination({
     initialData: filteredData,
     itemsPerPage: 15,
-    searchKeys: ["ruanganNama", "kelasNama", "userUsername", "kartuUid", "keterangan"],
+    searchKeys: [
+      "ruanganNama", 
+      "kelasNama",      
+      "userUsername", 
+      "userKelasNama",  // Agar search text juga mencari kelas siswa
+      "kartuUid", 
+      "keterangan"
+    ],
   });
 
   const { paginatedData, currentPage, limit, setSearchQuery } = pagination;
@@ -125,7 +154,7 @@ export default function ActivityPage() {
     return () => { if (connection) connection.stop().catch(() => {}); };
   }, []);
 
-  // --- Handlers ---
+  // --- Handlers (Update Note, Delete, DeleteAll) ---
   const handleUpdateNote = async () => {
     toast.loading("Menyimpan...", { id: "note" });
     try {
@@ -169,9 +198,9 @@ export default function ActivityPage() {
   const openEdit = (item: any) => setNoteDialog({ open: true, id: item.id, val: item.keterangan || "" });
 
   return (
-    <RoleBasedGuard allowedRoles={["admin", "operator", "guru"]}>
+    <RoleBasedGuard allowedRoles={["admin", "operator", "guru,siswa"]}>
       <div className="space-y-6 pb-20 font-sans bg-gray-50/50 min-h-screen">
-        
+
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl border shadow-sm mx-1 sm:mx-0">
           <h1 className="text-lg font-bold text-gray-700 flex items-center gap-2">
@@ -192,7 +221,10 @@ export default function ActivityPage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             <SelectBox label="Lab" name="lab" val={filters.lab} fn={handleFilterChange} opts={options.labs} k="nama" />
-            <SelectBox label="Kelas" name="kelas" val={filters.kelas} fn={handleFilterChange} opts={options.kelas} k="nama" />
+            
+            {/* GUNAKAN classOptions YANG DIAMBIL DARI MASTER DATA */}
+            <SelectBox label="Kelas" name="kelas" val={filters.kelas} fn={handleFilterChange} opts={classOptions} k="nama" />
+            
             <SelectBox label="User" name="user" val={filters.user} fn={handleFilterChange} opts={options.users} k="username" />
             <DateInput label="Mulai" name="startDate" val={filters.startDate} fn={handleFilterChange} />
             <DateInput label="Sampai" name="endDate" val={filters.endDate} fn={handleFilterChange} />
@@ -205,7 +237,7 @@ export default function ActivityPage() {
         <div className="space-y-4">
           <div className="flex justify-between items-center px-2">
              <h3 className="font-bold text-gray-700 text-sm tracking-wide">DATA LOG ({filteredData.length})</h3>
-             
+
              {/* Delete All Dialog */}
              <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -226,15 +258,13 @@ export default function ActivityPage() {
              </AlertDialog>
           </div>
 
-          {/* --- TAMPILAN DESKTOP (TABLE) --- */}
-          <ActivityTable 
-            data={paginatedData} loading={loading} page={currentPage} limit={limit} 
-            onEdit={openEdit} onDelete={handleDelete} 
+          <ActivityTable
+            data={paginatedData} loading={loading} page={currentPage} limit={limit}
+            onEdit={openEdit} onDelete={handleDelete}
           />
 
-          {/* --- TAMPILAN MOBILE (CARD) --- */}
           <div className="md:hidden space-y-3 px-1">
-             {loading ? <div className="text-center py-10 text-gray-400 text-sm">Memuat data...</div> : 
+             {loading ? <div className="text-center py-10 text-gray-400 text-sm">Memuat data...</div> :
               paginatedData.length === 0 ? <div className="text-center py-10 text-gray-400 italic text-sm">Tidak ada data.</div> :
               paginatedData.map((item: any) => (
                 <ActivityCard key={item.id} item={item} onEdit={openEdit} onDelete={handleDelete} />
@@ -244,13 +274,13 @@ export default function ActivityPage() {
         </div>
 
         <PaginationControls {...pagination} />
-        
-        <EditNoteDialog 
-          open={noteDialog.open} 
+
+        <EditNoteDialog
+          open={noteDialog.open}
           onOpenChange={(o: boolean) => setNoteDialog({...noteDialog, open: o})}
-          value={noteDialog.val} 
-          onChange={(v: string) => setNoteDialog({...noteDialog, val: v})} 
-          onSave={handleUpdateNote} 
+          value={noteDialog.val}
+          onChange={(v: string) => setNoteDialog({...noteDialog, val: v})}
+          onSave={handleUpdateNote}
         />
       </div>
     </RoleBasedGuard>

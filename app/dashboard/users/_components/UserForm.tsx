@@ -3,12 +3,13 @@
 
 import { User } from "@/types/user";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
 import { userService } from "@/services/user.service";
-import { authService } from "@/services/auth.service"; // Import authService untuk getRoles
+import { authService } from "@/services/auth.service";
+import { classService } from "@/services/class.service"; // Import Class Service
 import { toast } from "sonner";
 import { AxiosError } from "axios";
 import {
@@ -38,23 +39,20 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 
-// 1. Schema Create: Wajib Password
+// Schema Validation
+// Tambahkan kelasId (string dari form, nanti dikonversi ke number)
 const createFormSchema = z.object({
-  username: z.string().min(3, "Username setidaknya terdiri dari 3 karakter."),
-  password: z.string().min(6, "Password setidaknya terdiri dari 6 karakter."),
+  username: z.string().min(3, "Username minimal 3 karakter."),
+  password: z.string().min(6, "Password minimal 6 karakter."),
   role: z.string().min(1, "Role wajib diisi."),
+  kelasId: z.string().optional(), 
 });
 
-// 2. Schema Edit: TIDAK ADA Password
 const editFormSchema = z.object({
-  username: z.string().min(3, "Username setidaknya terdiri dari 3 karakter."),
+  username: z.string().min(3, "Username minimal 3 karakter."),
   role: z.string().min(1, "Role wajib diisi."),
-  // Password dihapus dari sini agar tidak divalidasi/dikirim
+  kelasId: z.string().optional(),
 });
-
-// Helper type untuk form values
-export type CreateFormValues = z.infer<typeof createFormSchema>;
-export type EditFormValues = z.infer<typeof editFormSchema>;
 
 interface UserFormProps {
   isOpen: boolean;
@@ -71,61 +69,82 @@ export default function UserForm({
   const isEditMode = !!initialData;
   const [isOpenPassword, setIsOpenPassword] = useState(false);
 
-  // 3. Setup React Hook Form
-  // Kita gunakan 'any' pada useForm generic agar bisa switch antar schema,
-  // atau gunakan conditional logic yang aman.
   const form = useForm<any>({
     resolver: zodResolver(isEditMode ? editFormSchema : createFormSchema),
     defaultValues: {
       username: "",
       password: "",
       role: "",
+      kelasId: "no-class", // Default value string
     },
   });
 
-  // Ambil Data Role dari Backend (Opsional: jika dinamis)
-  // Atau hardcode jika role statis: ['admin', 'guru', 'siswa']
+  // Watch role untuk menampilkan field kelas hanya jika role = siswa (Opsional UX)
+  // Tapi untuk sekarang kita tampilkan selalu atau sesuai kebutuhan
+  const selectedRole = useWatch({ control: form.control, name: "role" });
+
+  // 1. Ambil Data Roles
   const { data: rolesData } = useQuery({
     queryKey: ["roles"],
     queryFn: async () => await authService.getRoles(),
+    staleTime: Infinity,
   });
-  
+
+  // 2. Ambil Data Kelas untuk Dropdown
+  const { data: classesData } = useQuery({
+    queryKey: ["classes-list"],
+    queryFn: async () => await classService.getAll(),
+    enabled: isOpen, // Hanya fetch saat modal buka
+  });
+
   const roles = rolesData?.data || [
     { value: "admin", label: "Admin" },
     { value: "guru", label: "Guru" },
-    { value: "siswa", label: "Siswa" }
+    { value: "siswa", label: "Siswa" },
+    { value: "operator", label: "Operator" }
   ];
 
-  // Reset form saat modal dibuka/tutup
+  // Reset & Populate Form
   useEffect(() => {
     if (isOpen) {
-      form.reset(); // Clear dulu
+      form.reset({
+        username: "",
+        password: "",
+        role: "",
+        kelasId: "no-class"
+      });
+      
       if (initialData) {
-        // Mode Edit: Isi Username & Role saja
         form.setValue("username", initialData.username);
         form.setValue("role", initialData.role);
-        // Password tidak di-set
+        form.setValue("kelasId", initialData.kelasId ? String(initialData.kelasId) : "no-class");
       }
     }
   }, [form, isOpen, initialData]);
 
   const mutation = useMutation({
     mutationFn: async (values: any) => {
+      // Konversi kelasId: jika "no-class" atau string kosong -> null, jika ada angka -> number
+      const finalKelasId = (values.kelasId && values.kelasId !== "no-class") 
+        ? Number(values.kelasId) 
+        : null;
+
+      const payload = {
+        ...values,
+        kelasId: finalKelasId
+      };
+
       if (isEditMode) {
-        // Edit: Payload hanya { username, role }
-        // Pastikan tidak mengirim password kosong
-        const { password, ...payload } = values; 
-        return await userService.update(String(initialData.id), payload);
+        // Hapus password dari payload edit
+        const { password, ...editPayload } = payload;
+        return await userService.update(String(initialData.id), editPayload);
       } else {
-        // Create: Payload lengkap { username, password, role }
-        return await userService.create(values);
+        return await userService.create(payload);
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
-      toast.success(
-        `Berhasil ${isEditMode ? "mengupdate" : "membuat"} data user!`
-      );
+      toast.success(`Berhasil ${isEditMode ? "mengupdate" : "membuat"} user!`);
       onClose();
     },
     onError: (err) => {
@@ -145,16 +164,14 @@ export default function UserForm({
         <DialogHeader>
           <DialogTitle>{isEditMode ? "Edit User" : "Tambah User"}</DialogTitle>
           <DialogDescription>
-            {isEditMode 
-              ? "Ubah data username atau role pengguna." 
-              : "Masukkan kredensial untuk pengguna baru."}
+            {isEditMode ? "Ubah data pengguna." : "Tambah pengguna baru ke dalam sistem."}
           </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            
-            {/* Field Username */}
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+
+            {/* Username */}
             <FormField
               control={form.control}
               name="username"
@@ -162,14 +179,14 @@ export default function UserForm({
                 <FormItem>
                   <FormLabel>Username</FormLabel>
                   <FormControl>
-                    <Input placeholder="Masukkan username..." {...field} />
+                    <Input placeholder="Username..." {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            {/* Field Password (HANYA MUNCUL SAAT CREATE) */}
+            {/* Password (Create Mode Only) */}
             {!isEditMode && (
               <FormField
                 control={form.control}
@@ -178,10 +195,10 @@ export default function UserForm({
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <div className="relative w-full">
+                      <div className="relative">
                         <Input
                           type={isOpenPassword ? "text" : "password"}
-                          placeholder="Masukkan password..."
+                          placeholder="Password..."
                           {...field}
                         />
                         <button
@@ -199,43 +216,70 @@ export default function UserForm({
               />
             )}
 
-            {/* Field Role */}
-            <FormField
-              control={form.control}
-              name="role"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Role</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                    value={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pilih role..." />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {roles.map((role: any) => (
-                        <SelectItem key={role.value} value={role.value}>
-                          {role.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-2 gap-4">
+              {/* Role */}
+              <FormField
+                control={form.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Role</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih Role" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {roles.map((role: any) => (
+                          <SelectItem key={role.value} value={role.value}>
+                            {role.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <DialogFooter className="pt-2">
+              {/* Kelas (Optional / Contextual) */}
+              <FormField
+                control={form.control}
+                name="kelasId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Kelas <span className="text-gray-400 text-xs font-normal">(Opsional)</span></FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih Kelas" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="no-class" className="text-gray-500 italic">
+                          -- Tidak ada kelas --
+                        </SelectItem>
+                        {classesData?.data?.map((kls: any) => (
+                          <SelectItem key={kls.id} value={String(kls.id)}>
+                            {kls.nama} <span className="text-gray-400 text-xs">({kls.periodeNama})</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <DialogFooter className="pt-4">
               <Button type="button" variant="outline" onClick={onClose}>
                 Batal
               </Button>
-              <Button type="submit" disabled={mutation.isPending} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+              <Button type="submit" disabled={mutation.isPending} className="bg-indigo-600 hover:bg-indigo-700">
                 {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isEditMode ? "Simpan Perubahan" : "Buat User"}
+                {isEditMode ? "Simpan" : "Buat User"}
               </Button>
             </DialogFooter>
           </form>

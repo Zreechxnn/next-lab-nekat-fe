@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, ArrowRight, Pencil, Trash, MapPin, User } from "lucide-react";
+import { Clock, ArrowRight, Pencil, Trash, MapPin, User, GraduationCap } from "lucide-react";
 import { formatDateTime, calculateDuration } from "@/utils/activity-helpers";
 
 interface ActivityCardProps {
@@ -23,6 +23,14 @@ export function ActivityCard({ item, onEdit, onDelete }: ActivityCardProps) {
           <h4 className="font-bold text-gray-800 text-sm truncate max-w-[200px]">
             {item.userUsername ?? item.kelasNama ?? "Unknown"}
           </h4>
+          
+          {/* TAMPILKAN KELAS USER JIKA ADA */}
+          {item.userUsername && item.userKelasNama && (
+             <div className="flex items-center gap-1 text-[10px] text-indigo-600 font-medium mt-0.5">
+                <GraduationCap size={10} /> {item.userKelasNama}
+             </div>
+          )}
+
           <div className="flex items-center gap-1 text-xs text-gray-500 mt-1 font-mono bg-gray-50 px-1.5 py-0.5 rounded w-fit">
              <User size={10} /> {item.kartuUid}
           </div>

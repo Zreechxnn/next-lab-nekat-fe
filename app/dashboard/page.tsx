@@ -12,8 +12,7 @@ import RoleBasedGuard from "@/components/shared/RoleBasedGuard"; // Pastikan imp
 import { Check, Clock, DoorOpen, FlaskConical, LayoutDashboard } from "lucide-react";
 
 export default function DashboardPage() {
-  // --- 1. AREA LOGIKA (HOOKS & FUNCTION) HARUS DISINI ---
-  
+
   const [stats, setStats] = useState({
     totalRuangan: 0,
     aktifSekarang: 0,
