@@ -13,7 +13,7 @@ export default function RoleBasedGuard({
 }: RoleBasedGuardProps) {
   const user = useAuthStore((state) => state.user);
 
-  if (!user || !allowedRoles.includes(user.role)) {
+  if (!user || !user.role || !allowedRoles.includes(user.role.toLowerCase())) {
     return <Unauthorized />;
   }
 

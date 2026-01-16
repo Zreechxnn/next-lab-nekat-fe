@@ -198,7 +198,7 @@ export default function ActivityPage() {
   const openEdit = (item: any) => setNoteDialog({ open: true, id: item.id, val: item.keterangan || "" });
 
   return (
-    <RoleBasedGuard allowedRoles={["admin", "operator", "guru,siswa"]}>
+    <RoleBasedGuard allowedRoles={["admin", "operator", "guru", "siswa"]}>
       <div className="space-y-6 pb-20 font-sans bg-gray-50/50 min-h-screen">
 
         {/* Header */}
