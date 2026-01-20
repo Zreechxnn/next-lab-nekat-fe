@@ -22,6 +22,7 @@ import RoleBasedGuard from "@/components/shared/RoleBasedGuard";
 // IMPORT KOMPONEN BARU
 import { UserCard } from "./_components/user-card";
 import { UserTable } from "./_components/user-table";
+import { number } from "zod";
 
 export default function UsersPage() {
   const queryClient = useQueryClient();
@@ -60,7 +61,7 @@ export default function UsersPage() {
   }, [globalSearchQuery, setSearchQuery]);
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: number) => userService.deleteById(String(id)),
+    mutationFn: async (id: number) => userService.deleteById(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       toast.success("User berhasil dihapus!");
