@@ -61,7 +61,7 @@ export default function UsersPage() {
   }, [globalSearchQuery, setSearchQuery]);
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: number) => userService.deleteById(number(id)),
+    mutationFn: async (id: number) => userService.deleteById(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       toast.success("User berhasil dihapus!");

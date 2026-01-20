@@ -4,7 +4,7 @@
 import { User } from "@/types/user";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
-import z, { number } from "zod";
+import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
 import { userService } from "@/services/user.service";
@@ -112,7 +112,7 @@ export default function UserForm({ isOpen, onClose, initialData }: UserFormProps
 
       if (isEditMode) {
         const { password, ...editPayload } = payload;
-        return await userService.update(number(initialData.id), editPayload);
+        return await userService.update(Number(initialData.id), editPayload);
       } else {
         return await userService.create(payload);
       }
