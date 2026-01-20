@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { User, Edit, Trash, Shield } from "lucide-react"; // GraduationCap dihapus
+import { Edit, Trash, BookOpen } from "lucide-react"; // Import BookOpen
 
 interface UserCardProps {
   item: any;
@@ -9,61 +9,58 @@ interface UserCardProps {
   onConfirmDelete: (id: number, username: string) => void;
 }
 
-export function UserCard({ item, index, onEdit, onConfirmDelete }: UserCardProps) {
+export function UserCard({ item, onEdit, onConfirmDelete }: UserCardProps) {
+  const getRoleBadgeColor = (role: string) => {
+    switch(role) {
+        case "admin": return "bg-red-100 text-red-700 border-red-200";
+        case "guru": return "bg-orange-100 text-orange-700 border-orange-200";
+        case "operator": return "bg-purple-100 text-purple-700 border-purple-200";
+        default: return "bg-blue-100 text-blue-700 border-blue-200";
+    }
+  };
+
   return (
-    <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col gap-3 relative transition-all hover:shadow-md">
-      {/* Header: Index & Icon */}
-      <div className="flex justify-between items-start border-b border-gray-100 pb-2">
-        <div className="flex items-center gap-3">
-           <span className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 text-xs font-mono text-gray-500">
-             {index + 1}
-           </span>
-           <div>
-              <h4 className="font-bold text-gray-800 text-base">{item.username}</h4>
-              <span className="text-[10px] text-gray-400 font-mono">ID: {item.id}</span>
-           </div>
+    <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col gap-3 relative transition-all hover:shadow-md hover:border-indigo-200">
+      
+      <div className="flex items-start gap-4">
+        <div className="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-lg border border-indigo-100 shadow-sm">
+            {item.username.substring(0, 2).toUpperCase()}
         </div>
-        <div className="bg-indigo-50 p-2 rounded-full text-indigo-600">
-           <User size={18} />
+
+        <div className="flex-1">
+             <div className="flex justify-between items-start">
+                <h4 className="font-bold text-gray-800 text-base">{item.username}</h4>
+                <Badge variant="outline" className={`text-[10px] uppercase ${getRoleBadgeColor(item.role)}`}>
+                    {item.role}
+                </Badge>
+             </div>
+             
+             {/* INFO KELAS JIKA ADA */}
+             {item.kelasNama && (
+                 <div className="flex items-center gap-1.5 mt-2 text-xs text-gray-600 bg-gray-50 w-fit px-2 py-1 rounded border border-gray-100">
+                    <BookOpen size={12} className="text-gray-400" />
+                    <span className="font-medium">{item.kelasNama}</span>
+                 </div>
+             )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 mt-1">
-        {/* Role - Grid jadi 1 kolom karena kelas dihapus */}
-        <div className="flex flex-col gap-1 bg-gray-50 p-2 rounded-lg">
-          <div className="flex items-center gap-1 text-[10px] text-gray-500 uppercase tracking-wider">
-             <Shield size={10} /> Role
-          </div>
-          <div>
-            <Badge variant="secondary" className={`
-               text-xs
-              ${item.role === "admin" ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"}
-            `}>
-              {item.role}
-            </Badge>
-          </div>
-        </div>
-
-        {/* INFO KELAS DISEMBUNYIKAN */}
-      </div>
-
-      {/* Footer: Actions */}
-      <div className="flex items-center justify-end gap-2 pt-1 mt-1 border-t border-gray-100">
+      <div className="flex items-center gap-2 pt-2 mt-1 border-t border-gray-50">
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
           onClick={() => onEdit(item)}
-          className="h-8 text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50 gap-1 flex-1"
+          className="h-9 text-xs text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 flex-1 border border-transparent hover:border-indigo-100"
         >
-           <Edit size={12} /> Edit
+           <Edit size={14} className="mr-1.5" /> Edit
         </Button>
         <Button
-          variant="destructive"
+          variant="ghost"
           size="sm"
           onClick={() => onConfirmDelete(item.id, item.username)}
-          className="h-8 text-xs gap-1 bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 shadow-none flex-1"
+          className="h-9 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 flex-1 border border-transparent hover:border-red-100"
         >
-           <Trash size={12} /> Hapus
+           <Trash size={14} className="mr-1.5" /> Hapus
         </Button>
       </div>
     </div>
