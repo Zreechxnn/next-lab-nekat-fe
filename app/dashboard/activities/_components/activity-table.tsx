@@ -20,7 +20,9 @@ export function ActivityTable({ data, loading, page, limit, onEdit, onDelete }: 
         <TableHeader className="bg-gray-100/80">
           <TableRow>
             <TableHead className="w-[50px] text-center font-bold text-gray-600">No</TableHead>
-            <TableHead className="w-[220px] font-bold text-gray-600">Identitas</TableHead>
+            <TableHead className="w-[200px] font-bold text-gray-600">Identitas</TableHead>
+            {/* TAMBAH HEADER KELAS */}
+            <TableHead className="font-bold text-gray-600">Kelas</TableHead>
             <TableHead className="font-bold text-gray-600">Ruangan</TableHead>
             <TableHead className="font-bold text-gray-600">Waktu</TableHead>
             <TableHead className="font-bold text-gray-600">Durasi</TableHead>
@@ -31,9 +33,9 @@ export function ActivityTable({ data, loading, page, limit, onEdit, onDelete }: 
         </TableHeader>
         <TableBody>
           {loading ? (
-             <TableRow><TableCell colSpan={8} className="text-center py-12 text-gray-500">Memuat data...</TableCell></TableRow>
+             <TableRow><TableCell colSpan={9} className="text-center py-12 text-gray-500">Memuat data...</TableCell></TableRow>
           ) : data.length === 0 ? (
-             <TableRow><TableCell colSpan={8} className="text-center py-12 text-gray-400 italic">Belum ada aktivitas.</TableCell></TableRow>
+             <TableRow><TableCell colSpan={9} className="text-center py-12 text-gray-400 italic">Belum ada aktivitas.</TableCell></TableRow>
           ) : (
              data.map((item, idx) => {
                const isCheckOut = item.timestampKeluar && new Date(item.timestampKeluar).getFullYear() !== 1 && item.timestampMasuk !== item.timestampKeluar;
@@ -45,19 +47,23 @@ export function ActivityTable({ data, loading, page, limit, onEdit, onDelete }: 
                        <span className="font-semibold text-gray-800 text-sm">
                          {item.userUsername ?? item.kelasNama}
                        </span>
-
-                       {/* KELAS USER DISEMBUNYIKAN */}
-                       {/* {item.userUsername && item.userKelasNama && (
-                         <span className="text-[10px] text-indigo-600 font-semibold">
-                           {item.userKelasNama}
-                         </span>
-                       )} */}
-
                        <span className="text-[10px] text-gray-500 font-mono border rounded w-fit px-1 bg-gray-50 mt-1">
                          {item.kartuUid}
                        </span>
                      </div>
                    </TableCell>
+
+                   {/* KOLOM KELAS (BARU) */}
+                   <TableCell>
+                      {item.userKelasNama ? (
+                        <span className="text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-1 rounded border border-indigo-100">
+                           {item.userKelasNama}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-300">-</span>
+                      )}
+                   </TableCell>
+
                    <TableCell className="text-sm font-medium text-gray-700">{item.ruanganNama}</TableCell>
                    <TableCell>
                      <div className="flex flex-col text-xs gap-1">
@@ -73,7 +79,7 @@ export function ActivityTable({ data, loading, page, limit, onEdit, onDelete }: 
                    <TableCell>
                      <Badge variant={isCheckOut ? "secondary" : "default"} className={`text-[10px] ${isCheckOut ? 'bg-gray-100 text-gray-500' : 'bg-emerald-100 text-emerald-700'}`}>
                         {isCheckOut ? "SELESAI" : "AKTIF"}
-                     </Badge>
+                      </Badge>
                    </TableCell>
                    <TableCell className="text-xs text-gray-600 truncate max-w-[150px] italic">{item.keterangan || "-"}</TableCell>
                    <TableCell className="text-right">

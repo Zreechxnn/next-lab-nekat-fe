@@ -7,7 +7,7 @@ export const exportAktivitasToExcel = (data: any) => {
     return;
   }
 
-  // --- Helper Formatter--
+  // --- Helper Formatter ---
   const formatTime = (iso: any) => {
     if (!iso) return "-";
     return new Date(iso).toLocaleString("id-ID", {
@@ -38,34 +38,34 @@ export const exportAktivitasToExcel = (data: any) => {
     return isOut ? "CHECK OUT" : "CHECK IN";
   };
 
-  // --- Mapping Data ---
+  // --- Mapping Data (LOGIKA BARU: MEMISAHKAN KOLOM) ---
   const excelData = data.map((item: any, index: any) => {
     
-    // --- PERBAIKAN LOGIKA PEMILIK ---
-    let identitas = "-";
-    let subInfo = "";
+    let namaPengguna = "-";
+    let namaKelas = "-";
+    let kategori = "-";
 
     if (item.userUsername) {
-        // Jika User
-        identitas = item.userUsername;
-        
-        // Cek jika user punya kelas
-        if (item.userKelasNama) {
-            subInfo = ` (${item.userKelasNama})`; 
-        }
+        // CASE 1: USER (Siswa/Guru)
+        namaPengguna = item.userUsername;
+        namaKelas = item.userKelasNama || "-"; // Ambil kelas user jika ada
+        kategori = "User / Siswa";
     } else if (item.kelasNama) {
-        // Jika Kartu Kelas
-        identitas = item.kelasNama;
-        subInfo = " (Kartu Kelas)";
+        // CASE 2: KARTU KELAS
+        namaPengguna = "(Kartu Kelas)";
+        namaKelas = item.kelasNama; // Ambil nama kelas dari kartu
+        kategori = "Kartu Kelas";
     }
 
     const kartuIdFormatted = item.kartuUid
-      ? item.kartuUid.split(":").join(" : ")
+      ? item.kartuUid.split(":").join("") // Hapus titik dua biar bersih
       : "-";
 
     return {
-      No: index + 1,
-      "Identitas": identitas + subInfo, // Gabung Nama + Kelas
+      "No": index + 1,
+      "Kategori": kategori,       
+      "Nama Pengguna": namaPengguna, 
+      "Kelas": namaKelas,          
       "Lab": item.ruanganNama || "-",
       "Kartu ID": kartuIdFormatted,
       "Waktu Masuk": formatTime(item.timestampMasuk),
@@ -84,14 +84,16 @@ export const exportAktivitasToExcel = (data: any) => {
 
   const wscols = [
     { wch: 5 },  // No
-    { wch: 30 }, // Identitas (Lebih lebar karena ada nama + kelas)
+    { wch: 15 }, // Kategori
+    { wch: 25 }, // Nama Pengguna
+    { wch: 15 }, // Kelas
     { wch: 20 }, // Lab
-    { wch: 20 }, // Kartu ID
+    { wch: 15 }, // Kartu ID
     { wch: 20 }, // Masuk
     { wch: 20 }, // Keluar
     { wch: 15 }, // Durasi
     { wch: 15 }, // Status
-    { wch: 30 }, // Catatan
+    { wch: 40 }, // Catatan
   ];
   worksheet["!cols"] = wscols;
 

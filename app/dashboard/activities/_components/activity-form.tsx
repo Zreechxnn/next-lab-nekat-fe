@@ -5,7 +5,6 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Check, DoorOpen, Clock, ChartPie } from "lucide-react";
 
-// --- Komponen Dialog Edit Catatan (Updated) ---
 export function EditNoteDialog({ open, onOpenChange, value, onChange, onSave }: any) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -31,7 +30,6 @@ export function EditNoteDialog({ open, onOpenChange, value, onChange, onSave }: 
   );
 }
 
-// --- Komponen Kartu Statistik (Tetap menggunakan warna pembeda) ---
 export function StatCard({ title, val, bg, Icon }: any) {
   return (
     <div className={`${bg} rounded-xl p-5 flex items-center gap-4 text-white shadow-md`}>
@@ -49,7 +47,6 @@ export function StatCard({ title, val, bg, Icon }: any) {
 export function ActivityStats({ stats }: any) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      {/* Warna statistik dibiarkan variatif agar mudah dibedakan secara visual */}
       <StatCard title="Total Aktivitas" val={stats.total} bg="bg-emerald-500" Icon={Check} />
       <StatCard title="Sedang Aktif" val={stats.active} bg="bg-blue-500" Icon={DoorOpen} />
       <StatCard title="Rata Durasi" val={stats.avgDuration} bg="bg-orange-500" Icon={Clock} />
