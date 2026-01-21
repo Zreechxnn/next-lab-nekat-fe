@@ -22,7 +22,6 @@ interface SelectBoxProps {
   k: string;
 }
 
-// 1. Komponen SelectBox (Dropdown Dinamis)
 export function SelectBox({ label, name, val, fn, opts, k }: SelectBoxProps) {
   const handleValueChange = (newValue: string) => {
     fn({
@@ -64,7 +63,6 @@ export function SelectBox({ label, name, val, fn, opts, k }: SelectBoxProps) {
   );
 }
 
-// 2. Komponen DateInput (Input Tanggal) <-- INI YANG HILANG SEBELUMNYA
 export function DateInput({ label, name, val, fn }: any) {
   return (
     <div className="flex flex-col space-y-1.5">
@@ -80,7 +78,6 @@ export function DateInput({ label, name, val, fn }: any) {
   );
 }
 
-// 3. Komponen StatusSelect (Dropdown Status CheckIn/Out)
 export function StatusSelect({ val, fn }: { val: string; fn: (v: string) => void }) {
   return (
     <div className="flex flex-col space-y-1.5">

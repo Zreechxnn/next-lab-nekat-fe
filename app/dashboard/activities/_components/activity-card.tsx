@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, ArrowRight, Pencil, Trash, MapPin, User } from "lucide-react"; // GraduationCap dihapus
+import { Clock, ArrowRight, Pencil, Trash, MapPin, User, BookOpen } from "lucide-react"; // Import BookOpen
 import { formatDateTime, calculateDuration } from "@/utils/activity-helpers";
 
 interface ActivityCardProps {
@@ -14,22 +14,19 @@ export function ActivityCard({ item, onEdit, onDelete }: ActivityCardProps) {
 
   return (
     <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col gap-3 relative overflow-hidden transition-all hover:shadow-md">
-      {/* Garis Status di Kiri */}
       <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${isCheckOut ? 'bg-gray-300' : 'bg-emerald-500'}`} />
 
-      {/* Header: User & Status */}
       <div className="flex justify-between items-start pl-3">
         <div>
           <h4 className="font-bold text-gray-800 text-sm truncate max-w-[200px]">
             {item.userUsername ?? item.kelasNama ?? "Unknown"}
           </h4>
 
-          {/* KELAS USER DISEMBUNYIKAN SEMENTARA */}
-          {/* {item.userUsername && item.userKelasNama && (
-             <div className="flex items-center gap-1 text-[10px] text-indigo-600 font-medium mt-0.5">
-                <GraduationCap size={10} /> {item.userKelasNama}
+          {item.userUsername && item.userKelasNama && (
+             <div className="flex items-center gap-1 text-[10px] text-indigo-600 font-medium mt-1 bg-indigo-50 w-fit px-1.5 py-0.5 rounded border border-indigo-100">
+                <BookOpen size={10} /> {item.userKelasNama}
              </div>
-          )} */}
+          )}
 
           <div className="flex items-center gap-1 text-xs text-gray-500 mt-1 font-mono bg-gray-50 px-1.5 py-0.5 rounded w-fit">
              <User size={10} /> {item.kartuUid}
@@ -40,7 +37,6 @@ export function ActivityCard({ item, onEdit, onDelete }: ActivityCardProps) {
         </Badge>
       </div>
 
-      {/* Info Detail: Lokasi & Durasi */}
       <div className="grid grid-cols-2 gap-2 text-xs pl-3 mt-1">
         <div className="flex flex-col gap-0.5">
           <span className="text-gray-400 font-medium flex items-center gap-1"><MapPin size={10}/> Ruangan</span>
@@ -52,7 +48,6 @@ export function ActivityCard({ item, onEdit, onDelete }: ActivityCardProps) {
         </div>
       </div>
 
-      {/* Timeline Waktu */}
       <div className="bg-gray-50 p-2.5 rounded-lg text-xs flex justify-between items-center ml-3 border border-gray-100">
          <span className="text-emerald-700 font-medium">{formatDateTime(item.timestampMasuk)}</span>
          <ArrowRight size={12} className="text-gray-300" />
@@ -61,7 +56,6 @@ export function ActivityCard({ item, onEdit, onDelete }: ActivityCardProps) {
          </span>
       </div>
 
-      {/* Footer: Catatan & Tombol Aksi */}
       <div className="flex items-center justify-between pl-3 pt-2 mt-1 border-t border-gray-100">
          <p className="text-xs text-gray-500 truncate max-w-[180px] italic pr-2">
            {item.keterangan || "Tidak ada catatan"}
