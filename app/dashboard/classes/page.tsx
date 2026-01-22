@@ -4,12 +4,12 @@
 import { useLocalPagination } from "@/hooks/useLocalPagination";
 import { classService } from "@/services/class.service";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react"; // Tambah useRef
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { 
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle 
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
 } from "@/components/ui/alert-dialog";
 import { Book, Plus } from "lucide-react";
 import ClassForm from "./_components/ClassForm";
@@ -17,7 +17,10 @@ import { PaginationControls } from "@/components/shared/PaginationControls";
 import { useSearchStore } from "@/store/useSearchStore";
 import RoleBasedGuard from "@/components/shared/RoleBasedGuard";
 
-// IMPORT KOMPONEN BARU
+// IMPORT SIGNALR
+import { createSignalRConnection } from "@/lib/signalr";
+import { HubConnection, HubConnectionState } from "@microsoft/signalr";
+
 import { ClassCard } from "./_components/class-card";
 import { ClassTable } from "./_components/class-table";
 
@@ -26,7 +29,9 @@ export default function ClassesPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedClass, setSelectedClass] = useState(null);
   
-  // State untuk Dialog Hapus (Clean Approach)
+  // Ref untuk koneksi SignalR
+  const connectionRef = useRef<HubConnection | null>(null);
+
   const [deleteDialog, setDeleteDialog] = useState({ open: false, id: "", nama: "" });
 
   const globalSearchQuery = useSearchStore((state) => state.searchQuery);
@@ -55,9 +60,51 @@ export default function ClassesPage() {
     setSearchQuery(globalSearchQuery);
   }, [globalSearchQuery, setSearchQuery]);
 
+  // --- INTEGRASI SIGNALR (Realtime Update) ---
+  useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    if (!token) return;
+
+    const connection = createSignalRConnection(token);
+    connectionRef.current = connection;
+
+    const startSignalR = async () => {
+      if (connection.state === HubConnectionState.Disconnected) {
+        try {
+          await connection.start();
+
+          // Dengarkan event "KelasChanged" dari Backend
+          connection.on("KelasChanged", (payload: any) => {
+            console.log("Realtime Kelas:", payload);
+            
+            // Tampilkan notifikasi kecil
+            if (payload.Action === "KELAS_CREATED") toast.info("Info: Ada kelas baru ditambahkan");
+            if (payload.Action === "KELAS_DELETED") toast.warning("Info: Sebuah kelas telah dihapus");
+
+            // INVALIDATE QUERY: Memaksa React Query mengambil data terbaru dari server
+            // Ini cara paling aman agar data di tabel selalu sinkron
+            queryClient.invalidateQueries({ queryKey: ["classes"] });
+          });
+
+        } catch (e) {
+          console.error("SignalR Error", e);
+        }
+      }
+    };
+
+    startSignalR();
+
+    return () => {
+      if (connection) connection.stop().catch(() => {});
+    };
+  }, [queryClient]);
+  // -------------------------------------------
+
   const deleteMutation = useMutation({
     mutationFn: (id: string) => classService.deleteById(id),
     onSuccess: () => {
+      // Tidak perlu invalidate manual disini jika SignalR berjalan, 
+      // tapi tetap biarkan untuk feedback instan user yang melakukan aksi
       queryClient.invalidateQueries({ queryKey: ["classes"] });
       toast.success("Kelas berhasil dihapus.");
       setDeleteDialog({ open: false, id: "", nama: "" });
@@ -65,20 +112,17 @@ export default function ClassesPage() {
     onError: () => toast.error("Gagal menghapus kelas.")
   });
 
-  // Handler Buka Form
   const openCreate = () => { setSelectedClass(null); setIsFormOpen(true); };
   const openEdit = (item: any) => { setSelectedClass(item); setIsFormOpen(true); };
-  
-  // Handler Buka Delete Konfirmasi
-  const openDelete = (id: string, nama: string) => { 
-      setDeleteDialog({ open: true, id, nama }); 
+
+  const openDelete = (id: string, nama: string) => {
+      setDeleteDialog({ open: true, id, nama });
   };
 
   return (
-    // PERBAIKAN: RoleBasedGuard membungkus seluruh konten div
     <RoleBasedGuard allowedRoles={["admin", "guru", "operator"]}>
       <div className="flex flex-col gap-6 font-sans pb-20">
-        
+
         {/* Header Section */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
@@ -92,16 +136,14 @@ export default function ClassesPage() {
           </Button>
         </div>
 
-        {/* --- CONTENT AREA --- */}
-        
         {/* Desktop View */}
-        <ClassTable 
-          data={paginatedData} 
-          loading={isLoading} 
-          page={currentPage} 
-          limit={limit} 
-          onEdit={openEdit} 
-          onConfirmDelete={openDelete} 
+        <ClassTable
+          data={paginatedData}
+          loading={isLoading}
+          page={currentPage}
+          limit={limit}
+          onEdit={openEdit}
+          onConfirmDelete={openDelete}
         />
 
         {/* Mobile View */}
@@ -112,12 +154,12 @@ export default function ClassesPage() {
             <div className="text-center py-10 text-gray-400 italic text-sm">Tidak ada data.</div>
           ) : (
             paginatedData.map((item: any, index: number) => (
-              <ClassCard 
-                key={item.id} 
-                item={item} 
-                index={(currentPage - 1) * limit + index} 
-                onEdit={openEdit} 
-                onConfirmDelete={openDelete} 
+              <ClassCard
+                key={item.id}
+                item={item}
+                index={(currentPage - 1) * limit + index}
+                onEdit={openEdit}
+                onConfirmDelete={openDelete}
               />
             ))
           )}
@@ -126,10 +168,10 @@ export default function ClassesPage() {
         <PaginationControls {...pagination} />
 
         {/* Form Dialog */}
-        <ClassForm 
-          isOpen={isFormOpen} 
-          onClose={() => setIsFormOpen(false)} 
-          initialData={selectedClass} 
+        <ClassForm
+          isOpen={isFormOpen}
+          onClose={() => setIsFormOpen(false)}
+          initialData={selectedClass}
         />
 
         {/* Delete Dialog (Global) */}
@@ -143,8 +185,8 @@ export default function ClassesPage() {
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Batal</AlertDialogCancel>
-              <AlertDialogAction 
-                onClick={() => deleteMutation.mutate(deleteDialog.id)} 
+              <AlertDialogAction
+                onClick={() => deleteMutation.mutate(deleteDialog.id)}
                 className="bg-red-600 hover:bg-red-700 text-white"
               >
                 {deleteMutation.isPending ? "Menghapus..." : "Ya, Hapus"}

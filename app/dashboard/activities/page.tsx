@@ -140,19 +140,42 @@ export default function ActivityPage() {
 
     const connection = createSignalRConnection(token);
     connectionRef.current = connection;
+
     const startSignalR = async () => {
       if (connection.state === HubConnectionState.Disconnected) {
         try {
           await connection.start();
+
           connection.on("ReceiveCheckIn", fetchData);
           connection.on("ReceiveCheckOut", fetchData);
-          connection.on("AllAksesLogsDeleted", () => { setData([]); toast.info("Database dibersihkan."); });
-        } catch (e) { console.error("SignalR Error", e); }
+
+          connection.on("AksesLogUpdated", (updatedItem: any) => {
+            console.log("Update Catatan Diterima:", updatedItem);
+            
+            setData((prevData) => 
+              prevData.map((item) => 
+                item.id === updatedItem.id ? { ...item, ...updatedItem } : item
+              )
+            );
+          });
+         
+          connection.on("AllAksesLogsDeleted", () => { 
+            setData([]); 
+            toast.info("Database dibersihkan."); 
+          });
+
+        } catch (e) { 
+          console.error("SignalR Error", e); 
+        }
       }
     };
+
     setTimeout(startSignalR, 1000);
-    return () => { if (connection) connection.stop().catch(() => {}); };
-  }, []);
+    
+    return () => { 
+      if (connection) connection.stop().catch(() => {}); 
+    };
+}, []);
 
   // --- Handlers (Update Note, Delete, DeleteAll) ---
   const handleUpdateNote = async () => {
