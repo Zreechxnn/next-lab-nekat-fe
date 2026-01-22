@@ -6,7 +6,7 @@ import { HubConnection, HubConnectionState } from "@microsoft/signalr";
 import { useActivityFilter } from "@/hooks/useActivityFilter";
 import { exportAktivitasToExcel } from "@/utils/exportActivity";
 import { activityService } from "@/services/activity.service";
-import { classService } from "@/services/class.service"; // IMPORT CLASS SERVICE
+import { classService } from "@/services/class.service";
 import { AxiosError } from "axios";
 import { toast } from "sonner";
 import { Activity, Download, Trash, RotateCcw, Filter } from "lucide-react";
@@ -19,7 +19,7 @@ import { useLocalPagination } from "@/hooks/useLocalPagination";
 import { PaginationControls } from "@/components/shared/PaginationControls";
 import RoleBasedGuard from "@/components/shared/RoleBasedGuard";
 import { useSearchStore } from "@/store/useSearchStore";
-import { useQuery } from "@tanstack/react-query"; // IMPORT USEQUERY
+import { useQuery } from "@tanstack/react-query";
 
 // IMPORT KOMPONEN
 import { SelectBox, DateInput, StatusSelect } from "./_components/activity-filter-parts";
@@ -44,18 +44,16 @@ export default function ActivityPage() {
 
   const { options, filters, handleFilterChange, filteredData } = useActivityFilter(data);
 
-  // Gabungkan Opsi Kelas: Prioritaskan dari Master Data agar ada Nama Periodenya
   const classOptions = useMemo(() => {
     if (classesData?.success && classesData.data) {
         return classesData.data.map((c: any) => ({
             id: c.id,
             nama: c.nama,
-            periodeNama: c.periodeNama // Pastikan backend kirim ini di getAll Kelas
+            periodeNama: c.periodeNama
         }));
     }
-    return options.kelas; // Fallback (biasanya kosong dr hook)
+    return options.kelas;
   }, [classesData, options.kelas]);
-
 
   const pagination = useLocalPagination({
     initialData: filteredData,
@@ -64,7 +62,7 @@ export default function ActivityPage() {
       "ruanganNama", 
       "kelasNama",      
       "userUsername", 
-      "userKelasNama",  // Agar search text juga mencari kelas siswa
+      "userKelasNama", 
       "kartuUid", 
       "keterangan"
     ],
@@ -151,12 +149,19 @@ export default function ActivityPage() {
 
           connection.on("AksesLogUpdated", (updatedItem: any) => {
             console.log("Update Catatan Diterima:", updatedItem);
-            
             setData((prevData) => 
               prevData.map((item) => 
                 item.id === updatedItem.id ? { ...item, ...updatedItem } : item
               )
             );
+          });
+
+          connection.on("AksesLogDeleted", (payload: any) => {
+             console.log("Realtime Delete:", payload);
+             const deletedId = typeof payload === 'object' ? (payload.id || payload.Id) : payload;
+
+             setData((prevData) => prevData.filter((item) => item.id !== deletedId));
+             toast.warning("Data aktivitas telah dihapus.");
           });
          
           connection.on("AllAksesLogsDeleted", () => { 
@@ -170,14 +175,14 @@ export default function ActivityPage() {
       }
     };
 
-    setTimeout(startSignalR, 1000);
+    const timeoutId = setTimeout(startSignalR, 1000);
     
     return () => { 
+      clearTimeout(timeoutId);
       if (connection) connection.stop().catch(() => {}); 
     };
-}, []);
+  }, []);
 
-  // --- Handlers (Update Note, Delete, DeleteAll) ---
   const handleUpdateNote = async () => {
     toast.loading("Menyimpan...", { id: "note" });
     try {
@@ -195,8 +200,10 @@ export default function ActivityPage() {
     toast.loading("Menghapus...", { id: "delete" });
     try {
       const res = await activityService.deleteById(id);
-      if (res.success) setData((prev) => prev.filter((i) => i.id !== id));
-      toast.success("Terhapus.");
+      if (res.success) {
+         setData((prev) => prev.filter((i) => i.id !== id));
+         toast.success("Terhapus.");
+      }
     } catch (e) { if (e instanceof AxiosError) toast.error(e.response?.data.message); } finally { toast.dismiss("delete"); }
   };
 
@@ -213,7 +220,10 @@ export default function ActivityPage() {
         toast.success(`${idsToDelete.length} data dihapus.`);
       } else {
         const res = await activityService.deleteAll();
-        if (res.success) { setData([]); toast.success("Semua data dihapus."); }
+        if (res.success) { 
+            setData([]); 
+            toast.success("Semua data dihapus."); 
+        }
       }
     } catch (e) { toast.error("Gagal sebagian."); } finally { toast.dismiss("all"); }
   };
@@ -224,7 +234,6 @@ export default function ActivityPage() {
     <RoleBasedGuard allowedRoles={["admin", "operator", "guru", "siswa"]}>
       <div className="space-y-6 pb-20 font-sans bg-gray-50/50 min-h-screen">
 
-        {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl border shadow-sm mx-1 sm:mx-0">
           <h1 className="text-lg font-bold text-gray-700 flex items-center gap-2">
             <Activity className="text-emerald-600" /> Log Aktivitas
@@ -234,7 +243,6 @@ export default function ActivityPage() {
           </Button>
         </div>
 
-        {/* Filter & Stats */}
         <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 space-y-6 mx-1 sm:mx-0">
           <div className="flex justify-between items-center border-b pb-2">
             <h3 className="font-semibold text-gray-700 flex items-center gap-2 text-sm"><Filter size={16}/> Filter</h3>
@@ -245,7 +253,6 @@ export default function ActivityPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             <SelectBox label="Lab" name="lab" val={filters.lab} fn={handleFilterChange} opts={options.labs} k="nama" />
             
-            {/* GUNAKAN classOptions YANG DIAMBIL DARI MASTER DATA */}
             <SelectBox label="Kelas" name="kelas" val={filters.kelas} fn={handleFilterChange} opts={classOptions} k="nama" />
             
             <SelectBox label="User" name="user" val={filters.user} fn={handleFilterChange} opts={options.users} k="username" />
@@ -256,12 +263,10 @@ export default function ActivityPage() {
           <ActivityStats stats={stats} />
         </div>
 
-        {/* Data Container */}
         <div className="space-y-4">
           <div className="flex justify-between items-center px-2">
              <h3 className="font-bold text-gray-700 text-sm tracking-wide">DATA LOG ({filteredData.length})</h3>
 
-             {/* Delete All Dialog */}
              <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="ghost" size="sm" className="text-red-500 hover:bg-red-50 text-xs" disabled={filteredData.length === 0}>
