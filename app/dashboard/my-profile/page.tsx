@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react"; // Tambah useRef
 import { toast } from "sonner";
 import { authService } from "@/services/auth.service";
 import { Loader2, Pencil, X, Check, User, ShieldCheck, CreditCard } from "lucide-react";
@@ -10,6 +10,10 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
+// IMPORT SIGNALR
+import { createSignalRConnection } from "@/lib/signalr";
+import { HubConnection, HubConnectionState } from "@microsoft/signalr";
+
 interface ProfileData {
   id: number;
   username: string;
@@ -17,11 +21,16 @@ interface ProfileData {
   createdAt: string;
   kartuUid: string;
   kartuId: number;
+  // Tambahan info kelas jika ada dari backend
+  kelasNama?: string; 
 }
 
 export default function MyProfilePage() {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Ref untuk SignalR
+  const connectionRef = useRef<HubConnection | null>(null);
 
   // State untuk Edit Profile
   const [isEditing, setIsEditing] = useState(false);
@@ -57,6 +66,50 @@ export default function MyProfilePage() {
     }
   };
 
+  // --- INTEGRASI SIGNALR (Realtime Update dari Admin/Device Lain) ---
+  useEffect(() => {
+    // Hanya connect jika profile sudah dimuat (kita butuh ID user untuk validasi)
+    if (!profile) return;
+
+    const token = localStorage.getItem("authToken");
+    if (!token) return;
+
+    const connection = createSignalRConnection(token);
+    connectionRef.current = connection;
+
+    const startSignalR = async () => {
+      if (connection.state === HubConnectionState.Disconnected) {
+        try {
+          await connection.start();
+
+          // Dengarkan notifikasi user
+          connection.on("UserNotification", (payload: any) => {
+            // Cek apakah update ini untuk SAYA SENDIRI
+            if (payload.Data && payload.Data.id === profile.id) {
+               console.log("Profile updated by system/admin:", payload);
+               
+               if (payload.EventType === "USER_UPDATED") {
+                  // Refresh data profil agar sinkron (misal Admin ganti Role/Kelas)
+                  fetchProfile();
+                  toast.info("Profil anda telah diperbarui.");
+               }
+            }
+          });
+
+        } catch (e) {
+          console.error("SignalR Error", e);
+        }
+      }
+    };
+
+    startSignalR();
+
+    return () => {
+      if (connection) connection.stop().catch(() => {});
+    };
+  }, [profile?.id]); // Dependency ke profile.id
+  // -------------------------------------------------------------
+
   // --- LOGIC EDIT PROFILE ---
   const handleEditClick = () => {
     setEditUsername(profile?.username || "");
@@ -80,6 +133,7 @@ export default function MyProfilePage() {
 
       if (response.success) {
         toast.success("Profil berhasil diperbarui!");
+        // Update state lokal langsung
         setProfile((prev) => (prev ? { ...prev, username: editUsername } : null));
         setIsEditing(false);
       } else {
@@ -136,7 +190,7 @@ export default function MyProfilePage() {
     );
 
   return (
-    <div className="space-y-6 font-sans">
+    <div className="space-y-6 font-sans pb-20">
       {/* Header Section Konsisten */}
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-white p-4 rounded-xl border shadow-sm">
         <h1 className="text-xl font-bold text-gray-700 flex items-center gap-2">
@@ -236,6 +290,14 @@ export default function MyProfilePage() {
                 </div>
               </div>
             </div>
+            
+            {/* Info Kelas (Jika Ada) */}
+            {profile?.kelasNama && (
+                <div className="pt-2">
+                    <Label className="text-gray-500 text-xs uppercase tracking-wider">Kelas</Label>
+                    <p className="font-semibold text-gray-700">{profile.kelasNama}</p>
+                </div>
+            )}
 
             <div className="pt-2 border-t border-gray-50">
               <p className="text-xs text-gray-400 text-center">

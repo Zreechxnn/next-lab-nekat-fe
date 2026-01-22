@@ -4,7 +4,7 @@
 import { useLocalPagination } from "@/hooks/useLocalPagination";
 import { userService } from "@/services/user.service";
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react"; // Tambah useRef
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,18 +16,24 @@ import { Users, Plus } from "lucide-react";
 import UserForm from "./_components/UserForm";
 import { useSearchStore } from "@/store/useSearchStore";
 
-// 1. IMPORT GUARD
+// IMPORT GUARD
 import RoleBasedGuard from "@/components/shared/RoleBasedGuard";
+
+// IMPORT SIGNALR
+import { createSignalRConnection } from "@/lib/signalr";
+import { HubConnection, HubConnectionState } from "@microsoft/signalr";
 
 // IMPORT KOMPONEN BARU
 import { UserCard } from "./_components/user-card";
 import { UserTable } from "./_components/user-table";
-import { number } from "zod";
 
 export default function UsersPage() {
   const queryClient = useQueryClient();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+
+  // Ref untuk koneksi SignalR
+  const connectionRef = useRef<HubConnection | null>(null);
 
   // State untuk Dialog Hapus (Centralized)
   const [deleteDialog, setDeleteDialog] = useState({ open: false, id: 0, username: "" });
@@ -60,6 +66,45 @@ export default function UsersPage() {
     setSearchQuery(globalSearchQuery);
   }, [globalSearchQuery, setSearchQuery]);
 
+  // --- INTEGRASI SIGNALR (Realtime Update) ---
+  useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    if (!token) return;
+
+    const connection = createSignalRConnection(token);
+    connectionRef.current = connection;
+
+    const startSignalR = async () => {
+      if (connection.state === HubConnectionState.Disconnected) {
+        try {
+          await connection.start();
+
+          // Dengarkan event "UserNotification" dari Backend
+          connection.on("UserNotification", (payload: any) => {
+            console.log("Realtime User:", payload);
+
+            // Notifikasi Toast
+            if (payload.EventType === "USER_CREATED") toast.info(`Info: User baru '${payload.Data.username}' ditambahkan`);
+            if (payload.EventType === "USER_DELETED") toast.warning(`Info: User '${payload.Data.username}' telah dihapus`);
+            
+            // Refresh Data Tabel secara otomatis
+            queryClient.invalidateQueries({ queryKey: ["users"] });
+          });
+
+        } catch (e) {
+          console.error("SignalR Error", e);
+        }
+      }
+    };
+
+    startSignalR();
+
+    return () => {
+      if (connection) connection.stop().catch(() => {});
+    };
+  }, [queryClient]);
+  // -------------------------------------------
+
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => userService.deleteById(id),
     onSuccess: () => {
@@ -78,7 +123,7 @@ export default function UsersPage() {
   const openDelete = (id: number, username: string) => { setDeleteDialog({ open: true, id, username }); };
 
   return (
-    // 2. BUNGKUS DENGAN GUARD (Hanya Admin)
+    // BUNGKUS DENGAN GUARD (Hanya Admin)
     <RoleBasedGuard allowedRoles={["admin"]}>
       <div className="flex flex-col gap-6 font-sans pb-20">
 
