@@ -40,7 +40,7 @@ export default function ActivityPage() {
     staleTime: 1000 * 60 * 5,
   });
 
-  const { options, filters, handleFilterChange, filteredData } = useActivityFilter(data);
+  const { options, filters, handleFilterChange, filteredData, resetFilters } = useActivityFilter(data);
 
   const classOptions = useMemo(() => {
     if (classesData?.success && classesData.data) {
@@ -93,58 +93,19 @@ export default function ActivityPage() {
       if (connection.state === HubConnectionState.Disconnected) {
         try {
           await connection.start();
-
           connection.on("ReceiveCheckIn", fetchData);
           connection.on("ReceiveCheckOut", fetchData);
-          connection.on("kelaschanged", fetchData);
-          connection.on("userstatuschanged", fetchData);
-          
-          connection.on("kartunotification", (payload) => {
-            if (typeof payload === 'string') toast.info(payload);
-            fetchData();
-          });
-
-          connection.on("usernotification", (payload) => {
-            console.log("User Notification diterima:", payload);
-            if (typeof payload === 'string') toast.info(payload);
-            fetchData();
-          });
-
-          connection.on("ruangannotification", (payload) => {
-            if (typeof payload === 'string') toast.info(payload);
-            fetchData();
-          });
-
-          connection.on("kartudiperbarui", fetchData);
-
-          connection.on("AksesLogUpdated", (updatedItem: any) => {
-            setData((prevData) =>
-              prevData.map((item) => item.id === updatedItem.id ? { ...item, ...updatedItem } : item)
-            );
-          });
-
-          connection.on("AksesLogDeleted", (payload: any) => {
-             const deletedId = typeof payload === 'object' ? (payload.id || payload.Id) : payload;
-             setData((prevData) => prevData.filter((item) => item.id !== deletedId));
-          });
-
+          connection.on("AksesLogUpdated", fetchData);
+          connection.on("AksesLogDeleted", fetchData);
           connection.on("AllAksesLogsDeleted", () => setData([]));
-
         } catch (e) { console.error("SignalR Error", e); }
       }
     };
 
-    const timeoutId = setTimeout(startSignalR, 1000);
+    startSignalR();
 
     return () => {
-      clearTimeout(timeoutId);
       if (connection) {
-        connection.off("ReceiveCheckIn");
-        connection.off("ReceiveCheckOut");
-        connection.off("kartunotification");
-        connection.off("kartudiperbarui");
-        connection.off("ruangannotification");
-        connection.off("usernotification")
         connection.stop().catch(() => {});
       }
     };
@@ -168,8 +129,8 @@ export default function ActivityPage() {
     try {
       const res = await activityService.deleteById(id);
       if (res.success) {
-         setData((prev) => prev.filter((i) => i.id !== id));
-         toast.success("Terhapus.");
+          setData((prev) => prev.filter((i) => i.id !== id));
+          toast.success("Terhapus.");
       }
     } catch (e) { if (e instanceof AxiosError) toast.error(e.response?.data.message); } finally { toast.dismiss("delete"); }
   };
@@ -192,11 +153,33 @@ export default function ActivityPage() {
 
   const stats = useMemo(() => {
     const total = filteredData.length;
-    const active = filteredData.filter((i: any) => {
+    let active = 0;
+    let totalMin = 0;
+    let countOut = 0;
+    const labs: Record<string, number> = {};
+
+    filteredData.forEach((i: any) => {
       const hasOut = i.timestampKeluar && i.timestampKeluar !== "0001-01-01T00:00:00";
-      return !hasOut || i.timestampMasuk === i.timestampKeluar;
-    }).length;
-    return { total, active, avgDuration: "-", popularLab: "-" };
+      if (!hasOut || i.timestampMasuk === i.timestampKeluar) active++;
+      if (i.ruanganNama) labs[i.ruanganNama] = (labs[i.ruanganNama] || 0) + 1;
+
+      const m = new Date(i.timestampMasuk).getTime();
+      const k = new Date(i.timestampKeluar).getTime();
+      if (hasOut && k > m) {
+        totalMin += (k - m) / 60000;
+        countOut++;
+      }
+    });
+
+    const avg = countOut > 0 ? Math.round(totalMin / countOut) : 0;
+    const popular = Object.entries(labs).sort((a, b) => b[1] - a[1])[0]?.[0] || "-";
+
+    return {
+      total,
+      active,
+      avgDuration: avg > 60 ? `${Math.floor(avg / 60)}j ${avg % 60}m` : `${avg}m`,
+      popularLab: popular
+    };
   }, [filteredData]);
 
   return (
@@ -214,7 +197,7 @@ export default function ActivityPage() {
         <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 space-y-6 mx-1 sm:mx-0">
           <div className="flex justify-between items-center border-b pb-2">
             <h3 className="font-semibold text-gray-700 flex items-center gap-2 text-sm"><Filter size={16}/> Filter</h3>
-            <Button variant="ghost" size="sm" onClick={() => {}} className="text-xs h-7">
+            <Button variant="ghost" size="sm" onClick={resetFilters} className="text-xs h-7">
               <RotateCcw size={12} className="mr-1" /> Reset
             </Button>
           </div>
@@ -252,7 +235,7 @@ export default function ActivityPage() {
           </div>
 
           <ActivityTable data={paginatedData} loading={loading} page={currentPage} limit={limit} onEdit={(i) => setNoteDialog({open:true, id:i.id, val:i.keterangan||""})} onDelete={handleDelete} />
-          
+
           <div className="md:hidden space-y-3 px-1">
             {paginatedData.map((item: any) => (
               <ActivityCard key={item.id} item={item} onEdit={(i) => setNoteDialog({open:true, id:i.id, val:i.keterangan||""})} onDelete={handleDelete} />

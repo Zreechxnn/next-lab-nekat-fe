@@ -1,4 +1,3 @@
-"use client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -32,13 +31,13 @@ export function EditNoteDialog({ open, onOpenChange, value, onChange, onSave }: 
 
 export function StatCard({ title, val, bg, Icon }: any) {
   return (
-    <div className={`${bg} rounded-xl p-5 flex items-center gap-4 text-white shadow-md`}>
-      <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
-        <Icon size={28} />
+    <div className={`${bg} rounded-xl p-5 flex items-center gap-4 text-white shadow-md transition-all hover:scale-[1.02]`}>
+      <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+        <Icon size={24} />
       </div>
-      <div>
-        <p className="text-xs font-medium opacity-90">{title}</p>
-        <p className="text-lg font-bold leading-tight">{val}</p>
+      <div className="overflow-hidden">
+        <p className="text-[10px] font-medium opacity-80 uppercase tracking-wider truncate">{title}</p>
+        <p className="text-lg font-bold leading-tight truncate">{val}</p>
       </div>
     </div>
   );
@@ -46,7 +45,7 @@ export function StatCard({ title, val, bg, Icon }: any) {
 
 export function ActivityStats({ stats }: any) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <StatCard title="Total Aktivitas" val={stats.total} bg="bg-emerald-500" Icon={Check} />
       <StatCard title="Sedang Aktif" val={stats.active} bg="bg-blue-500" Icon={DoorOpen} />
       <StatCard title="Rata Durasi" val={stats.avgDuration} bg="bg-orange-500" Icon={Clock} />

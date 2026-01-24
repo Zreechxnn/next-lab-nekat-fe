@@ -5,7 +5,6 @@ import { userService } from "@/services/user.service";
 import { useState, useEffect, useMemo } from "react";
 
 export function useActivityFilter(rawData: any) {
-  // State Options
   const [options, setOptions] = useState<{
     labs: any[];
     kelas: any[];
@@ -16,22 +15,21 @@ export function useActivityFilter(rawData: any) {
     users: [],
   });
 
-  // State Filters
-  const [filters, setFilters] = useState({
+  const initialFilters = {
     lab: "",
     kelas: "",
     user: "",
     status: "",
     startDate: "",
     endDate: "",
-  });
+  };
 
-  // Fetch Options dari API (Server Side)
+  const [filters, setFilters] = useState(initialFilters);
+
   useEffect(() => {
     const fetchOptions = async () => {
       const token = localStorage.getItem("authToken");
       if (!token) return;
-
       try {
         const [resLab, resKelas, resUser] = await Promise.all([
           roomService.getAll(),
@@ -41,7 +39,6 @@ export function useActivityFilter(rawData: any) {
 
         setOptions({
           labs: resLab.success ? resLab.data : [],
-          // Backend harus kirim periodeNama di endpoint /Kelas agar dropdown jelas
           kelas: resKelas.success ? resKelas.data : [],
           users: resUser.success ? resUser.data : [],
         });
@@ -49,7 +46,6 @@ export function useActivityFilter(rawData: any) {
         console.error("Gagal memuat filter options", error);
       }
     };
-
     fetchOptions();
   }, []);
 
@@ -57,71 +53,36 @@ export function useActivityFilter(rawData: any) {
     setFilters((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleReset = () => {
-    setFilters({
-      lab: "",
-      kelas: "",
-      user: "",
-      status: "",
-      startDate: "",
-      endDate: "",
-    });
+  // Ganti nama dari handleReset ke resetFilters agar sinkron dengan page.tsx
+  const resetFilters = () => {
+    setFilters(initialFilters);
   };
 
-  // --- LOGIKA FILTERING UTAMA ---
   const filteredData = useMemo(() => {
     if (!rawData) return [];
 
     return rawData.filter((item: any) => {
-      
-      // 1. Filter Lab
-      if (filters.lab) {
-        if (String(item.ruanganId) !== String(filters.lab)) return false;
-      }
+      if (filters.lab && String(item.ruanganId) !== String(filters.lab)) return false;
 
-      // 2. Filter Kelas (PERBAIKAN DISINI)
       if (filters.kelas) {
-        const filterId = String(filters.kelas); // ID dari Dropdown (misal "5")
-
-        // Ambil ID Kelas dari Kartu Kelas (jika ada)
+        const filterId = String(filters.kelas);
         const kartuKelasId = item.kelasId ? String(item.kelasId) : "";
-        
-        // Ambil ID Kelas dari User Siswa (jika ada)
         const userKelasId = item.userKelasId ? String(item.userKelasId) : "";
-
-        // Logika: Tampilkan jika Kartu Kelas COCOK --ATAU-- Siswa Kelas COCOK
-        const isMatch = kartuKelasId === filterId || userKelasId === filterId;
-
-        if (!isMatch) return false;
+        if (kartuKelasId !== filterId && userKelasId !== filterId) return false;
       }
 
-      // 3. Filter User
       if (filters.user) {
-        // Bandingkan Username karena di tabel log fieldnya userUsername
-        // Kita cari username dari options berdasarkan ID yang dipilih di dropdown
-        const selectedUserObj = options.users.find(
-          (u) => String(u.id) === String(filters.user)
-        );
-
-        if (!item.userUsername) return false;
-
-        if (selectedUserObj && item.userUsername !== selectedUserObj.username)
-          return false;
+        const selectedUserObj = options.users.find(u => String(u.id) === String(filters.user));
+        if (!item.userUsername || (selectedUserObj && item.userUsername !== selectedUserObj.username)) return false;
       }
 
-      // 4. Filter Status CheckIn/Out
       if (filters.status) {
-        const hasCheckout =
-          item.timestampKeluar &&
-          item.timestampKeluar !== "0001-01-01T00:00:00";
-        const isOut =
-          hasCheckout && item.timestampMasuk !== item.timestampKeluar;
-
+        const hasCheckout = item.timestampKeluar && item.timestampKeluar !== "0001-01-01T00:00:00";
+        const isOut = hasCheckout && item.timestampMasuk !== item.timestampKeluar;
         if (filters.status === "CHECKIN" && isOut) return false;
         if (filters.status === "CHECKOUT" && !isOut) return false;
       }
 
-      // 5. Filter Tanggal
       const itemDate = new Date(item.timestampMasuk);
       itemDate.setHours(0, 0, 0, 0);
 
@@ -133,7 +94,7 @@ export function useActivityFilter(rawData: any) {
 
       if (filters.endDate) {
         const end = new Date(filters.endDate);
-        end.setHours(0, 0, 0, 0);
+        end.setHours(23, 59, 59, 999); // Set ke akhir hari agar data hari tersebut ikut terjaring
         if (itemDate > end) return false;
       }
 
@@ -145,7 +106,7 @@ export function useActivityFilter(rawData: any) {
     options,
     filters,
     handleFilterChange,
-    handleReset,
+    resetFilters, // Pastikan ini diekspor
     filteredData,
   };
 }
