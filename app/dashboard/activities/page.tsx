@@ -120,7 +120,6 @@ export default function ActivityPage() {
     return { total, active, avgDuration, popularLab };
   }, [filteredData]);
 
-  // --- Fetching Logic ---
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -146,6 +145,11 @@ export default function ActivityPage() {
 
           connection.on("ReceiveCheckIn", fetchData);
           connection.on("ReceiveCheckOut", fetchData);
+
+          connection.on("kelaschanged", fetchData); 
+          connection.on("userstatuschanged", fetchData);
+          connection.on("usernotification", (payload) => {
+          });
 
           connection.on("AksesLogUpdated", (updatedItem: any) => {
             console.log("Update Catatan Diterima:", updatedItem);
