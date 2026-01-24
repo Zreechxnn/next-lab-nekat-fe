@@ -86,9 +86,9 @@ export default function DashboardPage() {
         if (connection.state === HubConnectionState.Disconnected) {
           await connection.start();
           
-          if (connection.state === HubConnectionState.Connected) {
-            // Bergabung ke grup 'dashboard' sesuai Hub backend
+          if ((connection.state as unknown as HubConnectionState) === HubConnectionState.Connected) {
             await connection.invoke("JoinDashboard");
+            console.log("[SignalR] Dashboard joined successfully");
           }
 
           const refreshAll = () => {
