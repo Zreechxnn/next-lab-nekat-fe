@@ -21,7 +21,6 @@ import RoleBasedGuard from "@/components/shared/RoleBasedGuard";
 import { useSearchStore } from "@/store/useSearchStore";
 import { useQuery } from "@tanstack/react-query";
 
-// IMPORT KOMPONEN
 import { SelectBox, DateInput, StatusSelect } from "./_components/activity-filter-parts";
 import { EditNoteDialog, ActivityStats } from "./_components/activity-form";
 import { ActivityCard } from "./_components/activity-card";
@@ -35,11 +34,10 @@ export default function ActivityPage() {
   const globalSearchQuery = useSearchStore((state) => state.searchQuery);
   const setGlobalSearchQuery = useSearchStore((state) => state.setSearchQuery);
 
-  // Ambil Data Master Kelas untuk Filter Dropdown
   const { data: classesData } = useQuery({
     queryKey: ["classes-filter"],
     queryFn: () => classService.getAll(),
-    staleTime: 1000 * 60 * 5, // Cache 5 menit
+    staleTime: 1000 * 60 * 5,
   });
 
   const { options, filters, handleFilterChange, filteredData } = useActivityFilter(data);
@@ -58,14 +56,7 @@ export default function ActivityPage() {
   const pagination = useLocalPagination({
     initialData: filteredData,
     itemsPerPage: 15,
-    searchKeys: [
-      "ruanganNama", 
-      "kelasNama",      
-      "userUsername", 
-      "userKelasNama", 
-      "kartuUid", 
-      "keterangan"
-    ],
+    searchKeys: ["ruanganNama", "kelasNama", "userUsername", "userKelasNama", "kartuUid", "keterangan"],
   });
 
   const { paginatedData, currentPage, limit, setSearchQuery } = pagination;
@@ -79,46 +70,6 @@ export default function ActivityPage() {
   useEffect(() => {
     setSearchQuery(globalSearchQuery);
   }, [globalSearchQuery, setSearchQuery]);
-
-  const handleResetFilters = () => {
-    setGlobalSearchQuery("");
-    ["lab", "kelas", "user", "status", "startDate", "endDate"].forEach((key) => {
-      handleFilterChange({ target: { name: key, value: "" } });
-    });
-    toast.info("Filter di-reset");
-  };
-
-  // --- Logic Statistik ---
-  const stats = useMemo(() => {
-    const total = filteredData.length;
-    const active = filteredData.filter((i: any) => {
-      const hasOut = i.timestampKeluar && i.timestampKeluar !== "0001-01-01T00:00:00";
-      return !hasOut || i.timestampMasuk === i.timestampKeluar;
-    }).length;
-
-    let totalDurasi = 0;
-    let countSelesai = 0;
-    const labCounts: Record<string, number> = {};
-
-    filteredData.forEach((i: any) => {
-      const hasOut = i.timestampKeluar && i.timestampKeluar !== "0001-01-01T00:00:00";
-      if (hasOut && i.timestampMasuk !== i.timestampKeluar) {
-        totalDurasi += new Date(i.timestampKeluar).getTime() - new Date(i.timestampMasuk).getTime();
-        countSelesai++;
-      }
-      const lab = i.ruanganNama || "Lainnya";
-      labCounts[lab] = (labCounts[lab] || 0) + 1;
-    });
-
-    const avgDuration = countSelesai > 0 ? (totalDurasi / countSelesai / 60000).toFixed(0) + "m" : "-";
-    let popularLab = "-";
-    let maxCount = 0;
-    Object.entries(labCounts).forEach(([lab, count]) => {
-      if (count > maxCount) { maxCount = count; popularLab = lab; }
-    });
-
-    return { total, active, avgDuration, popularLab };
-  }, [filteredData]);
 
   const fetchData = async () => {
     try {
@@ -145,45 +96,57 @@ export default function ActivityPage() {
 
           connection.on("ReceiveCheckIn", fetchData);
           connection.on("ReceiveCheckOut", fetchData);
-
-          connection.on("kelaschanged", fetchData); 
+          connection.on("kelaschanged", fetchData);
           connection.on("userstatuschanged", fetchData);
-          connection.on("usernotification", (payload) => {
+          
+          connection.on("kartunotification", (payload) => {
+            if (typeof payload === 'string') toast.info(payload);
+            fetchData();
           });
 
+          connection.on("usernotification", (payload) => {
+            console.log("User Notification diterima:", payload);
+            if (typeof payload === 'string') toast.info(payload);
+            fetchData();
+          });
+
+          connection.on("ruangannotification", (payload) => {
+            if (typeof payload === 'string') toast.info(payload);
+            fetchData();
+          });
+
+          connection.on("kartudiperbarui", fetchData);
+
           connection.on("AksesLogUpdated", (updatedItem: any) => {
-            console.log("Update Catatan Diterima:", updatedItem);
-            setData((prevData) => 
-              prevData.map((item) => 
-                item.id === updatedItem.id ? { ...item, ...updatedItem } : item
-              )
+            setData((prevData) =>
+              prevData.map((item) => item.id === updatedItem.id ? { ...item, ...updatedItem } : item)
             );
           });
 
           connection.on("AksesLogDeleted", (payload: any) => {
-             console.log("Realtime Delete:", payload);
              const deletedId = typeof payload === 'object' ? (payload.id || payload.Id) : payload;
-
              setData((prevData) => prevData.filter((item) => item.id !== deletedId));
-             toast.warning("Data aktivitas telah dihapus.");
-          });
-         
-          connection.on("AllAksesLogsDeleted", () => { 
-            setData([]); 
-            toast.info("Database dibersihkan."); 
           });
 
-        } catch (e) { 
-          console.error("SignalR Error", e); 
-        }
+          connection.on("AllAksesLogsDeleted", () => setData([]));
+
+        } catch (e) { console.error("SignalR Error", e); }
       }
     };
 
     const timeoutId = setTimeout(startSignalR, 1000);
-    
-    return () => { 
+
+    return () => {
       clearTimeout(timeoutId);
-      if (connection) connection.stop().catch(() => {}); 
+      if (connection) {
+        connection.off("ReceiveCheckIn");
+        connection.off("ReceiveCheckOut");
+        connection.off("kartunotification");
+        connection.off("kartudiperbarui");
+        connection.off("ruangannotification");
+        connection.off("usernotification")
+        connection.stop().catch(() => {});
+      }
     };
   }, []);
 
@@ -214,30 +177,31 @@ export default function ActivityPage() {
   const handleDeleteAll = async () => {
     const idsToDelete = filteredData.map((item: any) => item.id);
     if (idsToDelete.length === 0) return toast.error("Tidak ada data.");
-    const isFiltered = filteredData.length !== data.length;
     toast.loading("Proses hapus...", { id: "all" });
-
     try {
-      if (isFiltered) {
+      if (filteredData.length !== data.length) {
         await Promise.all(idsToDelete.map((id: string) => activityService.deleteById(id)));
         setData((prev) => prev.filter((item) => !idsToDelete.includes(item.id)));
-        toast.success(`${idsToDelete.length} data dihapus.`);
       } else {
         const res = await activityService.deleteAll();
-        if (res.success) { 
-            setData([]); 
-            toast.success("Semua data dihapus."); 
-        }
+        if (res.success) setData([]);
       }
-    } catch (e) { toast.error("Gagal sebagian."); } finally { toast.dismiss("all"); }
+      toast.success("Data berhasil dihapus.");
+    } catch (e) { toast.error("Gagal."); } finally { toast.dismiss("all"); }
   };
 
-  const openEdit = (item: any) => setNoteDialog({ open: true, id: item.id, val: item.keterangan || "" });
+  const stats = useMemo(() => {
+    const total = filteredData.length;
+    const active = filteredData.filter((i: any) => {
+      const hasOut = i.timestampKeluar && i.timestampKeluar !== "0001-01-01T00:00:00";
+      return !hasOut || i.timestampMasuk === i.timestampKeluar;
+    }).length;
+    return { total, active, avgDuration: "-", popularLab: "-" };
+  }, [filteredData]);
 
   return (
     <RoleBasedGuard allowedRoles={["admin", "operator", "guru", "siswa"]}>
       <div className="space-y-6 pb-20 font-sans bg-gray-50/50 min-h-screen">
-
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl border shadow-sm mx-1 sm:mx-0">
           <h1 className="text-lg font-bold text-gray-700 flex items-center gap-2">
             <Activity className="text-emerald-600" /> Log Aktivitas
@@ -250,15 +214,13 @@ export default function ActivityPage() {
         <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 space-y-6 mx-1 sm:mx-0">
           <div className="flex justify-between items-center border-b pb-2">
             <h3 className="font-semibold text-gray-700 flex items-center gap-2 text-sm"><Filter size={16}/> Filter</h3>
-            <Button variant="ghost" size="sm" onClick={handleResetFilters} className="text-xs h-7">
+            <Button variant="ghost" size="sm" onClick={() => {}} className="text-xs h-7">
               <RotateCcw size={12} className="mr-1" /> Reset
             </Button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             <SelectBox label="Lab" name="lab" val={filters.lab} fn={handleFilterChange} opts={options.labs} k="nama" />
-            
             <SelectBox label="Kelas" name="kelas" val={filters.kelas} fn={handleFilterChange} opts={classOptions} k="nama" />
-            
             <SelectBox label="User" name="user" val={filters.user} fn={handleFilterChange} opts={options.users} k="username" />
             <DateInput label="Mulai" name="startDate" val={filters.startDate} fn={handleFilterChange} />
             <DateInput label="Sampai" name="endDate" val={filters.endDate} fn={handleFilterChange} />
@@ -270,17 +232,16 @@ export default function ActivityPage() {
         <div className="space-y-4">
           <div className="flex justify-between items-center px-2">
              <h3 className="font-bold text-gray-700 text-sm tracking-wide">DATA LOG ({filteredData.length})</h3>
-
              <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="ghost" size="sm" className="text-red-500 hover:bg-red-50 text-xs" disabled={filteredData.length === 0}>
-                  {filteredData.length !== data.length ? `Hapus ${filteredData.length} Item` : "Hapus Semua"} <Trash size={12} className="ml-2"/>
+                  Hapus Data <Trash size={12} className="ml-2"/>
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
-                  <AlertDialogDescription>Tindakan ini menghapus {filteredData.length} data secara permanen.</AlertDialogDescription>
+                  <AlertDialogDescription>Tindakan ini menghapus data yang dipilih secara permanen.</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Batal</AlertDialogCancel>
@@ -290,30 +251,18 @@ export default function ActivityPage() {
              </AlertDialog>
           </div>
 
-          <ActivityTable
-            data={paginatedData} loading={loading} page={currentPage} limit={limit}
-            onEdit={openEdit} onDelete={handleDelete}
-          />
-
+          <ActivityTable data={paginatedData} loading={loading} page={currentPage} limit={limit} onEdit={(i) => setNoteDialog({open:true, id:i.id, val:i.keterangan||""})} onDelete={handleDelete} />
+          
           <div className="md:hidden space-y-3 px-1">
-             {loading ? <div className="text-center py-10 text-gray-400 text-sm">Memuat data...</div> :
-              paginatedData.length === 0 ? <div className="text-center py-10 text-gray-400 italic text-sm">Tidak ada data.</div> :
-              paginatedData.map((item: any) => (
-                <ActivityCard key={item.id} item={item} onEdit={openEdit} onDelete={handleDelete} />
-              ))
-             }
+            {paginatedData.map((item: any) => (
+              <ActivityCard key={item.id} item={item} onEdit={(i) => setNoteDialog({open:true, id:i.id, val:i.keterangan||""})} onDelete={handleDelete} />
+            ))}
           </div>
         </div>
 
         <PaginationControls {...pagination} />
 
-        <EditNoteDialog
-          open={noteDialog.open}
-          onOpenChange={(o: boolean) => setNoteDialog({...noteDialog, open: o})}
-          value={noteDialog.val}
-          onChange={(v: string) => setNoteDialog({...noteDialog, val: v})}
-          onSave={handleUpdateNote}
-        />
+        <EditNoteDialog open={noteDialog.open} onOpenChange={(o: boolean) => setNoteDialog({...noteDialog, open: o})} value={noteDialog.val} onChange={(v: string) => setNoteDialog({...noteDialog, val: v})} onSave={handleUpdateNote} />
       </div>
     </RoleBasedGuard>
   );

@@ -66,7 +66,6 @@ export default function UsersPage() {
     setSearchQuery(globalSearchQuery);
   }, [globalSearchQuery, setSearchQuery]);
 
-  // --- INTEGRASI SIGNALR (Realtime Update) ---
   useEffect(() => {
     const token = localStorage.getItem("authToken");
     if (!token) return;
@@ -79,8 +78,7 @@ export default function UsersPage() {
         try {
           await connection.start();
 
-          // Dengarkan event "UserNotification" dari Backend
-          connection.on("UserNotification", (payload: any) => {
+          connection.on("usernotification", (payload: any) => {
             console.log("Realtime User:", payload);
 
             // Notifikasi Toast
