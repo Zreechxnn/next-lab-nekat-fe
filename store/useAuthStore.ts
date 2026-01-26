@@ -17,6 +17,8 @@ interface AuthState {
   login: (user: LoginPayload) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<boolean>;
+  
+  updateUser: (data: Partial<User>) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -31,7 +33,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
       localStorage.setItem("authToken", res.data.token);
       set({
-        user: { username: res.data.username, role: res.data.role },
+        user: { ...res.data },
         isAuthenticated: true,
         isLoading: false,
       });
@@ -45,17 +47,19 @@ export const useAuthStore = create<AuthState>((set) => ({
         if (err.response?.status === 401) {
           set({ user: null, isAuthenticated: false, isLoading: false });
         }
+      } else {
+        toast.error("Terjadi kesalahan saat login!");
       }
-
-      toast.error("Terjadi kesalahan saat login!");
     } finally {
       toast.dismiss("login");
     }
   },
+
   logout: async () => {
     try {
       toast.loading("Melakukan logout...", { id: "logout" });
-      localStorage.removeItem("authToken");
+      // Hapus token dulu agar bersih
+      localStorage.removeItem("authToken"); 
       toast.success("Logout berhasil!");
     } catch (err) {
       console.error(err);
@@ -65,6 +69,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       toast.dismiss("logout");
     }
   },
+
   checkAuth: async () => {
     set({ isLoading: true });
     try {
@@ -76,5 +81,11 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ user: null, isAuthenticated: false, isLoading: false });
       return false;
     }
+  },
+
+  updateUser: (data) => {
+    set((state) => ({
+      user: state.user ? { ...state.user, ...data } : null,
+    }));
   },
 }));

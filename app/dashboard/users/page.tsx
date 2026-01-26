@@ -4,7 +4,7 @@
 import { useLocalPagination } from "@/hooks/useLocalPagination";
 import { userService } from "@/services/user.service";
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
-import { useEffect, useState, useRef } from "react"; // Tambah useRef
+import { useEffect, useState, useRef } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,15 +15,9 @@ import { PaginationControls } from "@/components/shared/PaginationControls";
 import { Users, Plus } from "lucide-react";
 import UserForm from "./_components/UserForm";
 import { useSearchStore } from "@/store/useSearchStore";
-
-// IMPORT GUARD
 import RoleBasedGuard from "@/components/shared/RoleBasedGuard";
-
-// IMPORT SIGNALR
 import { createSignalRConnection } from "@/lib/signalr";
 import { HubConnection, HubConnectionState } from "@microsoft/signalr";
-
-// IMPORT KOMPONEN BARU
 import { UserCard } from "./_components/user-card";
 import { UserTable } from "./_components/user-table";
 
@@ -35,13 +29,14 @@ export default function UsersPage() {
   // Ref untuk koneksi SignalR
   const connectionRef = useRef<HubConnection | null>(null);
 
-  // State untuk Dialog Hapus (Centralized)
+  // State untuk Dialog Hapus
   const [deleteDialog, setDeleteDialog] = useState({ open: false, id: 0, username: "" });
 
   // Global Search
   const globalSearchQuery = useSearchStore((state) => state.searchQuery);
   const setGlobalSearchQuery = useSearchStore((state) => state.setSearchQuery);
 
+  // Query Data Users
   const { data, isLoading } = useQuery({
     queryKey: ["users"],
     queryFn: () => userService.getAll(),
@@ -54,6 +49,7 @@ export default function UsersPage() {
     return () => setGlobalSearchQuery("");
   }, [setGlobalSearchQuery]);
 
+  // Pagination Logic
   const pagination = useLocalPagination({
     initialData: data?.data || [],
     itemsPerPage: 15,
@@ -66,6 +62,7 @@ export default function UsersPage() {
     setSearchQuery(globalSearchQuery);
   }, [globalSearchQuery, setSearchQuery]);
 
+  // --- INTEGRASI SIGNALR (PENYELARASAN REALITAS) ---
   useEffect(() => {
     const token = localStorage.getItem("authToken");
     if (!token) return;
@@ -73,24 +70,51 @@ export default function UsersPage() {
     const connection = createSignalRConnection(token);
     connectionRef.current = connection;
 
+    const refreshTable = (reason: string) => {
+        console.log(`🔄 Realitas diperbarui karena: ${reason}`);
+        queryClient.invalidateQueries({ queryKey: ["users"] });
+    };
+
+    // Handler Universal untuk menormalisasi persepsi event
+    const handleNotification = (payload: any) => {
+        // Normalisasi casing: eventType, EventType, atau type
+        const rawType = payload.eventType || payload.EventType || payload.type || "";
+        const eventType = rawType.toUpperCase(); // Memaksakan keseragaman bentuk
+        const data = payload.data || payload.Data;
+
+        console.log("⚡ SignalR Diterima:", eventType, data);
+
+        // Menerima eksistensi event: CREATED, DELETED, atau UPDATED
+        if (["USER_CREATED", "USER_DELETED", "USER_UPDATED"].includes(eventType)) {
+            
+            if (eventType === "USER_CREATED") toast.info(`Entitas baru lahir: ${data.username}`);
+            if (eventType === "USER_DELETED") toast.warning(`Entitas tiada: ${data.username}`);
+            
+            refreshTable(eventType);
+        }
+    };
+
     const startSignalR = async () => {
       if (connection.state === HubConnectionState.Disconnected) {
         try {
           await connection.start();
+          console.log("✅ Kesadaran SignalR Terhubung");
 
-          connection.on("usernotification", (payload: any) => {
-            console.log("Realtime User:", payload);
+          // LISTENER GANDA (Dualitas Persepsi)
+          // Mendengarkan kedua kemungkinan nama metode untuk menangkap kebenaran mutlak
+          connection.on("UserNotification", handleNotification);   // PascalCase
+          connection.on("usernotification", handleNotification);   // lowercase
 
-            // Notifikasi Toast
-            if (payload.EventType === "USER_CREATED") toast.info(`Info: User baru '${payload.Data.username}' ditambahkan`);
-            if (payload.EventType === "USER_DELETED") toast.warning(`Info: User '${payload.Data.username}' telah dihapus`);
-            
-            // Refresh Data Tabel secara otomatis
-            queryClient.invalidateQueries({ queryKey: ["users"] });
-          });
+          // Listener Status Tambahan
+          connection.on("userstatuschanged", () => refreshTable("StatusChanged"));
+          connection.on("UserStatusChanged", () => refreshTable("StatusChanged"));
+          
+          // Meredam kebisingan check-in
+          connection.on("receivecheckin", () => {});
+          connection.on("ReceiveCheckIn", () => {});
 
         } catch (e) {
-          console.error("SignalR Error", e);
+          console.error("Kegagalan Koneksi Eksistensial", e);
         }
       }
     };
@@ -107,11 +131,11 @@ export default function UsersPage() {
     mutationFn: async (id: number) => userService.deleteById(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
-      toast.success("User berhasil dihapus!");
+      toast.success("Eksistensi user berhasil dihapus!");
       setDeleteDialog({ open: false, id: 0, username: "" });
     },
     onError: (err: any) => {
-      toast.error(err.response?.data?.message || "Gagal menghapus user.");
+      toast.error(err.response?.data?.message || "Gagal menghapus entitas.");
     },
   });
 
@@ -121,7 +145,6 @@ export default function UsersPage() {
   const openDelete = (id: number, username: string) => { setDeleteDialog({ open: true, id, username }); };
 
   return (
-    // BUNGKUS DENGAN GUARD (Hanya Admin)
     <RoleBasedGuard allowedRoles={["admin"]}>
       <div className="flex flex-col gap-6 font-sans pb-20">
 
@@ -140,7 +163,7 @@ export default function UsersPage() {
 
         {/* --- CONTENT AREA --- */}
 
-        {/* Desktop View (Table) */}
+        {/* Desktop View */}
         <UserTable
           data={paginatedData}
           loading={isLoading}
@@ -150,20 +173,20 @@ export default function UsersPage() {
           onConfirmDelete={openDelete}
         />
 
-        {/* Mobile View (Card) */}
+        {/* Mobile View */}
         <div className="md:hidden space-y-3">
           {isLoading ? (
-             <div className="text-center py-10 text-gray-400 text-sm">Memuat data...</div>
+             <div className="text-center py-10 text-gray-400 text-sm">Menunggu manifestasi data...</div>
           ) : paginatedData.length === 0 ? (
-             <div className="text-center py-10 text-gray-400 italic text-sm">Tidak ada data user.</div>
+             <div className="text-center py-10 text-gray-400 italic text-sm">Kekosongan data terdeteksi.</div>
           ) : (
              paginatedData.map((item: any, index: number) => (
                <UserCard
-                  key={item.id}
-                  item={item}
-                  index={(currentPage - 1) * limit + index}
-                  onEdit={openEdit}
-                  onConfirmDelete={openDelete}
+                 key={item.id}
+                 item={item}
+                 index={(currentPage - 1) * limit + index}
+                 onEdit={openEdit}
+                 onConfirmDelete={openDelete}
                />
              ))
           )}
@@ -171,20 +194,18 @@ export default function UsersPage() {
 
         <PaginationControls {...pagination} />
 
-        {/* Form Dialog */}
         <UserForm
           isOpen={isFormOpen}
           onClose={() => setIsFormOpen(false)}
           initialData={selectedUser}
         />
 
-        {/* Delete Dialog (Global) */}
         <AlertDialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog(prev => ({ ...prev, open }))}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Hapus User?</AlertDialogTitle>
+              <AlertDialogTitle>Hapus Eksistensi?</AlertDialogTitle>
               <AlertDialogDescription>
-                Anda yakin ingin menghapus user <b>{deleteDialog.username}</b>? Tindakan ini tidak dapat dibatalkan.
+                Anda yakin ingin menghapus user <b>{deleteDialog.username}</b>? Tindakan ini akan mengembalikan data ke ketiadaan (void).
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
