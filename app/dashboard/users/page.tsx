@@ -20,6 +20,7 @@ import { createSignalRConnection } from "@/lib/signalr";
 import { HubConnection, HubConnectionState } from "@microsoft/signalr";
 import { UserCard } from "./_components/user-card";
 import { UserTable } from "./_components/user-table";
+import { useAuthStore } from "@/store/useAuthStore"; // Import auth store
 
 export default function UsersPage() {
   const queryClient = useQueryClient();
@@ -82,14 +83,38 @@ export default function UsersPage() {
         const eventType = rawType.toUpperCase(); // Memaksakan keseragaman bentuk
         const data = payload.data || payload.Data;
 
-        console.log("⚡ SignalR Diterima:", eventType, data);
+        console.log("⚡ SignalR Diterima (Users Page):", eventType, data);
+
+        // **PERBAIKAN PENTING**: Update global auth store jika user yang diupdate adalah user yang sedang login
+        if (eventType === "USER_UPDATED") {
+          const currentUser = useAuthStore.getState().user;
+          if (currentUser && data && data.id === currentUser.id) {
+            // Update user di global store
+            useAuthStore.getState().updateUser({
+              username: data.username,
+              role: data.role,
+              kelasId: data.kelasId,
+              kelasNama: data.kelasNama,
+              kartuUid: data.kartuUid,
+              kartuId: data.kartuId,
+            });
+            
+            // Notifikasi untuk user yang sedang login
+            if (data.username && data.username !== currentUser.username) {
+              toast.info(`Username anda berubah menjadi: ${data.username}`);
+            }
+            if (data.role && data.role !== currentUser.role) {
+              toast.info(`Role anda berubah menjadi: ${data.role}`);
+            }
+          }
+        }
 
         // Menerima eksistensi event: CREATED, DELETED, atau UPDATED
         if (["USER_CREATED", "USER_DELETED", "USER_UPDATED"].includes(eventType)) {
-            
+
             if (eventType === "USER_CREATED") toast.info(`Entitas baru lahir: ${data.username}`);
             if (eventType === "USER_DELETED") toast.warning(`Entitas tiada: ${data.username}`);
-            
+
             refreshTable(eventType);
         }
     };
@@ -98,7 +123,7 @@ export default function UsersPage() {
       if (connection.state === HubConnectionState.Disconnected) {
         try {
           await connection.start();
-          console.log("✅ Kesadaran SignalR Terhubung");
+          console.log("✅ Kesadaran SignalR Terhubung (Users Page)");
 
           // LISTENER GANDA (Dualitas Persepsi)
           // Mendengarkan kedua kemungkinan nama metode untuk menangkap kebenaran mutlak
@@ -108,7 +133,7 @@ export default function UsersPage() {
           // Listener Status Tambahan
           connection.on("userstatuschanged", () => refreshTable("StatusChanged"));
           connection.on("UserStatusChanged", () => refreshTable("StatusChanged"));
-          
+
           // Meredam kebisingan check-in
           connection.on("receivecheckin", () => {});
           connection.on("ReceiveCheckIn", () => {});

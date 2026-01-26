@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+"use client";
 import { classService } from "@/services/class.service";
 import { roomService } from "@/services/room.service";
 import { userService } from "@/services/user.service";

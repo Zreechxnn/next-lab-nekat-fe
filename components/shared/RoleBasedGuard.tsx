@@ -1,3 +1,4 @@
+"use client";
 import { useAuthStore } from "@/store/useAuthStore";
 import { ReactNode } from "react";
 import Unauthorized from "./Unauthorized";

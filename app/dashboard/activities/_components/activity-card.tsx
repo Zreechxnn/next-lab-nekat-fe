@@ -1,3 +1,4 @@
+"use client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Clock, ArrowRight, Pencil, Trash, MapPin, User, BookOpen } from "lucide-react"; // Import BookOpen

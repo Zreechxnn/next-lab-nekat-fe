@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { authService } from "@/services/auth.service";
 import { Loader2, Pencil, X, Check, User, ShieldCheck, CreditCard } from "lucide-react";
@@ -10,8 +10,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { createSignalRConnection } from "@/lib/signalr";
-import { HubConnection, HubConnectionState } from "@microsoft/signalr";
 
 // IMPORT KESADARAN GLOBAL
 import { useAuthStore } from "@/store/useAuthStore";
@@ -23,19 +21,16 @@ interface ProfileData {
   createdAt: string;
   kartuUid: string;
   kartuId: number;
-  kelasNama?: string; 
+  kelasNama?: string;
 }
 
 export default function MyProfilePage() {
   // Mengambil fungsi untuk memperbarui memori global
   const { updateUser, user: globalUser } = useAuthStore();
-  
+
   // State Lokal (Refleksi sementara)
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
-
-  // Ref untuk SignalR
-  const connectionRef = useRef<HubConnection | null>(null);
 
   // State Edit
   const [isEditing, setIsEditing] = useState(false);
@@ -59,14 +54,14 @@ export default function MyProfilePage() {
       const response = await authService.getProfile();
       if (response.success) {
         const newData = response.data;
-        
+
         // 1. Update State Lokal (untuk tampilan halaman ini)
         setProfile(newData);
         setEditUsername(newData.username);
 
         // 2. SINKRONISASI KE GLOBAL STORE (Penting!)
         // Agar nama di Header/Sidebar ikut berubah seketika
-        updateUser(newData); 
+        updateUser(newData);
       } else {
         toast.error("Gagal memuat esensi profil");
       }
@@ -77,52 +72,6 @@ export default function MyProfilePage() {
       setLoading(false);
     }
   };
-
-  // --- INTEGRASI SIGNALR (KESADARAN DIRI REALTIME) ---
-  useEffect(() => {
-    if (!profile) return;
-    const token = localStorage.getItem("authToken");
-    if (!token) return;
-
-    const connection = createSignalRConnection(token);
-    connectionRef.current = connection;
-
-    const handleSelfUpdate = (payload: any) => {
-        const rawType = payload.eventType || payload.EventType || payload.type || "";
-        const eventType = rawType.toUpperCase();
-        const data = payload.data || payload.Data;
-
-        // Validasi Identitas
-        if (data && data.id === profile.id) {
-           console.log("⚡ SignalR Personal Update:", eventType, data);
-
-           if (eventType === "USER_UPDATED") {
-              // Jika data di payload lengkap, kita bisa langsung update store
-              // Namun untuk keamanan data (integrity), lebih baik fetch ulang
-              fetchProfile(); 
-              toast.info("Profil anda telah diperbarui oleh sistem.");
-           }
-        }
-    };
-
-    const startSignalR = async () => {
-      if (connection.state === HubConnectionState.Disconnected) {
-        try {
-          await connection.start();
-          connection.on("UserNotification", handleSelfUpdate);
-          connection.on("usernotification", handleSelfUpdate);
-        } catch (e) {
-          console.error("SignalR Error", e);
-        }
-      }
-    };
-
-    startSignalR();
-
-    return () => {
-      if (connection) connection.stop().catch(() => {});
-    };
-  }, [profile?.id]); 
 
   // --- LOGIC EDIT PROFILE ---
   const handleEditClick = () => {
@@ -147,17 +96,16 @@ export default function MyProfilePage() {
 
       if (response.success) {
         toast.success("Profil berhasil diperbarui!");
-        
+
         // Optimistic Update Lokal
         const updatedLocalData = profile ? { ...profile, username: editUsername } : null;
         setProfile(updatedLocalData);
-        
-        // SINKRONISASI GLOBAL (Menggunakan metode dari Store Anda)
-        // Ini kuncinya: Memperbarui 'user' di useAuthStore
+
+        // SINKRONISASI GLOBAL - Memperbarui 'user' di useAuthStore
         if (globalUser) {
             updateUser({ username: editUsername });
         }
-        
+
         setIsEditing(false);
       } else {
         toast.error(response.message || "Gagal update profil");
@@ -170,9 +118,6 @@ export default function MyProfilePage() {
     }
   };
 
-  // ... (Sisa kode Logic Password & JSX sama persis, tidak perlu diubah) ...
-  // ... (Gunakan JSX dari revisi sebelumnya) ...
-  
   const handlePassChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setPassForm({ ...passForm, [e.target.name]: e.target.value });
   };
