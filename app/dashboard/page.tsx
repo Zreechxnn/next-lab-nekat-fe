@@ -31,7 +31,6 @@ export default function DashboardPage() {
     try {
       const res = await dashboardService.overviewStats();
       if (res.success && isMounted.current) {
-        // Mapping manual untuk memastikan casing aman
         const d = res.data;
         setStats({
           totalRuangan: d.totalRuangan ?? d.TotalRuangan ?? 0,
@@ -47,8 +46,8 @@ export default function DashboardPage() {
 
   const fetchChartData = async (mode: string) => {
     try {
-      const res = mode === "monthly" 
-        ? await dashboardService.monthlyStats() 
+      const res = mode === "monthly"
+        ? await dashboardService.monthlyStats()
         : await dashboardService.last30DayStats();
 
       if (res.success && isMounted.current) {
@@ -96,7 +95,12 @@ export default function DashboardPage() {
             fetchChartData(chartMode);
           };
 
-          // Event dari BroadcastService.cs
+          // --- SILENCE WARNINGS ---
+          const silence = () => {};
+          connection.on("userstatuschanged", silence);
+          connection.on("UserStatusChanged", silence);
+          // ------------------------
+
           connection.on("DashboardStatsUpdated", (payload: any) => {
             if (isMounted.current) {
               const s = payload.stats || payload.Stats || payload;
@@ -109,7 +113,6 @@ export default function DashboardPage() {
             }
           });
 
-          // Listener fallback untuk perubahan data di halaman lain
           connection.on("ruangannotification", refreshAll);
           connection.on("RuanganNotification", refreshAll);
           connection.on("KelasChanged", refreshAll);
@@ -127,11 +130,11 @@ export default function DashboardPage() {
 
     return () => {
       isMounted.current = false;
-      if (connection) {
-        connection.off("DashboardStatsUpdated");
-        connection.off("ruangannotification");
-        connection.off("KelasChanged");
-        connection.stop().catch(() => {});
+      if (connectionRef.current) {
+        connectionRef.current.off("DashboardStatsUpdated");
+        connectionRef.current.off("userstatuschanged");
+        connectionRef.current.off("UserStatusChanged");
+        connectionRef.current.stop().catch(() => {});
       }
     };
   }, []);
@@ -140,7 +143,6 @@ export default function DashboardPage() {
     <RoleBasedGuard allowedRoles={["admin", "operator", "guru", "siswa"]}>
       <AuthGuard>
         <div className="font-sans space-y-6">
-          {/* Header */}
           <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
             <h1 className="text-xl font-bold text-gray-700 flex items-center gap-2">
               <LayoutDashboard className="text-emerald-600" /> Dashboard
@@ -154,7 +156,6 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard title="Total Lab" value={stats.totalRuangan} Icon={FlaskConical} color="bg-blue-500" />
             <StatCard title="Lab Sedang Aktif" value={stats.aktifSekarang} Icon={DoorOpen} color="bg-emerald-500" />
@@ -162,7 +163,6 @@ export default function DashboardPage() {
             <StatCard title="Total Akses" value={stats.totalAkses} Icon={Check} color="bg-indigo-500" />
           </div>
 
-          {/* Chart */}
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
             <div className="flex justify-between items-center mb-6">
               <div>

@@ -1,0 +1,9 @@
+const startSignalR = async () => {
+      try {
+        if (connection.state === HubConnectionState.Disconnected) {
+          await connection.start();
+          
+          if ((connection.state as unknown as HubConnectionState) === HubConnectionState.Connected) {
+            await connection.invoke("JoinDashboard");
+            console.log("[SignalR] Dashboard joined successfully");
+          }
