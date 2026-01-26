@@ -17,13 +17,13 @@ import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { cn } from "@/lib/utils";
+import { useEffect, useState } from "react";
 
-// 1. Tambahkan properti allowedRoles
 interface MenuItem {
   href: string;
   label: string;
   icon: any;
-  allowedRoles: string[]; // Array role yang diizinkan
+  allowedRoles: string[];
 }
 
 export default function Sidebar({
@@ -35,16 +35,19 @@ export default function Sidebar({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { logout, user } = useAuthStore();
+  const { logout, user: globalUser } = useAuthStore();
   const isDesktop = useIsDesktop();
+  
+  // State lokal untuk reaksi cepat terhadap perubahan role
+  const [user, setUser] = useState(globalUser);
+  const [filteredMenu, setFilteredMenu] = useState<MenuItem[]>([]);
+  
+  // Sync dengan perubahan global store
+  useEffect(() => {
+    setUser(globalUser);
+  }, [globalUser]);
 
-  const handleLogout = () => {
-    logout();
-    router.push("/");
-    if (!isDesktop) setIsOpenSidebar(false);
-  };
-
-  // 2. Konfigurasi Menu dengan Role sesuai Backend
+  // Konfigurasi Menu dengan Role sesuai Backend
   const menuItems: MenuItem[] = [
     {
       href: "/dashboard",
@@ -56,14 +59,12 @@ export default function Sidebar({
       href: "/dashboard/activities",
       label: "Aktivitas Lab",
       icon: Activity,
-      // PERBAIKAN: Pisahkan string dengan koma di luar kutip
-      allowedRoles: ["admin", "operator", "guru", "siswa"] 
+      allowedRoles: ["admin", "operator", "guru", "siswa"]
     },
     {
       href: "/dashboard/classes",
       label: "Data Kelas",
       icon: Book,
-      // PERBAIKAN: Hapus spasi berlebih dan pisahkan string
       allowedRoles: ["admin", "guru", "operator"]
     },
     {
@@ -72,29 +73,39 @@ export default function Sidebar({
       icon: FlaskConical,
       allowedRoles: ["admin", "operator"]
     },
-    { 
-      href: "/dashboard/cards", 
-      label: "Data Kartu", 
+    {
+      href: "/dashboard/cards",
+      label: "Data Kartu",
       icon: IdCard,
-      allowedRoles: ["admin", "operator"] 
+      allowedRoles: ["admin", "operator"]
     },
-    { 
-      href: "/dashboard/users", 
-      label: "Data User", 
+    {
+      href: "/dashboard/users",
+      label: "Data User",
       icon: Users,
-      allowedRoles: ["admin"] 
+      allowedRoles: ["admin"]
     },
   ];
 
-  // 3. Filter Menu Berdasarkan Role User saat ini
-  const filteredMenu = menuItems.filter((item) => {
-    // Jika user belum load atau tidak punya role, sembunyikan menu (kecuali dashboard umum jika perlu)
-    if (!user || !user.role) return false;
+  // Filter Menu Berdasarkan Role User saat ini - diupdate setiap kali user berubah
+  useEffect(() => {
+    if (!user || !user.role) {
+      setFilteredMenu([]);
+      return;
+    }
+
+    const filtered = menuItems.filter((item) => {
+      return item.allowedRoles.includes(user.role.toLowerCase());
+    });
     
-    // Cek apakah role user ada di allowedRoles item tersebut
-    // Kita gunakan toLowerCase() untuk jaga-jaga konsistensi string
-    return item.allowedRoles.includes(user.role.toLowerCase());
-  });
+    setFilteredMenu(filtered);
+  }, [user]);
+
+  const handleLogout = () => {
+    logout();
+    router.push("/");
+    if (!isDesktop) setIsOpenSidebar(false);
+  };
 
   return (
     <>
@@ -152,8 +163,8 @@ export default function Sidebar({
             SISTEM AKSES LAB
           </h3>
           <p className="text-xs text-gray-400">SMKN 1 Katapang</p>
-          
-          {/* Badge Role User (Opsional, untuk info visual) */}
+
+          {/* Badge Role User - AKAN UPDATE OTOMATIS */}
           {user?.role && (
             <div className="mt-3 inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-emerald-100 text-emerald-800 uppercase">
               {user.role}
@@ -179,7 +190,7 @@ export default function Sidebar({
               </li>
             ) : (
               <>
-                {/* Render Menu yang sudah difilter */}
+                {/* Render Menu yang sudah difilter - AKAN UPDATE OTOMATIS */}
                 {filteredMenu.map((item) => {
                   const isActive = pathname === item.href;
 
