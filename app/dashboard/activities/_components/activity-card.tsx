@@ -1,16 +1,17 @@
 "use client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, ArrowRight, Pencil, Trash, MapPin, User, BookOpen } from "lucide-react"; // Import BookOpen
+import { Clock, ArrowRight, Pencil, Trash, MapPin, User, BookOpen, Eye } from "lucide-react"; // Import Eye
 import { formatDateTime, calculateDuration } from "@/utils/activity-helpers";
 
 interface ActivityCardProps {
   item: any;
   onEdit: (item: any) => void;
   onDelete: (id: string) => void;
+  isReadOnly?: boolean;
 }
 
-export function ActivityCard({ item, onEdit, onDelete }: ActivityCardProps) {
+export function ActivityCard({ item, onEdit, onDelete, isReadOnly = false }: ActivityCardProps) {
   const isCheckOut = item.timestampKeluar && new Date(item.timestampKeluar).getFullYear() !== 1 && item.timestampMasuk !== item.timestampKeluar;
 
   return (
@@ -50,25 +51,30 @@ export function ActivityCard({ item, onEdit, onDelete }: ActivityCardProps) {
       </div>
 
       <div className="bg-gray-50 p-2.5 rounded-lg text-xs flex justify-between items-center ml-3 border border-gray-100">
-         <span className="text-emerald-700 font-medium">{formatDateTime(item.timestampMasuk)}</span>
-         <ArrowRight size={12} className="text-gray-300" />
-         <span className={isCheckOut ? "text-red-500 font-medium" : "text-gray-400 italic"}>
+          <span className="text-emerald-700 font-medium">{formatDateTime(item.timestampMasuk)}</span>
+          <ArrowRight size={12} className="text-gray-300" />
+          <span className={isCheckOut ? "text-red-500 font-medium" : "text-gray-400 italic"}>
             {isCheckOut ? formatDateTime(item.timestampKeluar) : "..."}
-         </span>
+          </span>
       </div>
 
       <div className="flex items-center justify-between pl-3 pt-2 mt-1 border-t border-gray-100">
-         <p className="text-xs text-gray-500 truncate max-w-[180px] italic pr-2">
-           {item.keterangan || "Tidak ada catatan"}
-         </p>
-         <div className="flex gap-1 shrink-0">
-            <Button size="icon" variant="ghost" className="h-8 w-8 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-full" onClick={() => onEdit(item)}>
-               <Pencil size={14} />
-            </Button>
-            <Button size="icon" variant="ghost" className="h-8 w-8 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full" onClick={() => onDelete(item.id)}>
-               <Trash size={14} />
-            </Button>
-         </div>
+          <p className="text-xs text-gray-500 truncate max-w-[180px] italic pr-2">
+            {item.keterangan || "Tidak ada catatan"}
+          </p>
+          <div className="flex gap-1 shrink-0">
+             <Button size="icon" variant="ghost" 
+                className={`h-8 w-8 rounded-full ${isReadOnly ? 'text-gray-400 hover:text-blue-600 hover:bg-blue-50' : 'text-gray-400 hover:text-emerald-600 hover:bg-emerald-50'}`} 
+                onClick={() => onEdit(item)}>
+                {isReadOnly ? <Eye size={14} /> : <Pencil size={14} />}
+             </Button>
+             
+             {!isReadOnly && (
+                <Button size="icon" variant="ghost" className="h-8 w-8 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full" onClick={() => onDelete(item.id)}>
+                   <Trash size={14} />
+                </Button>
+             )}
+          </div>
       </div>
     </div>
   );

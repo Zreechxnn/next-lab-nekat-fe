@@ -5,25 +5,33 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Check, DoorOpen, Clock, ChartPie } from "lucide-react";
 
-export function EditNoteDialog({ open, onOpenChange, value, onChange, onSave }: any) {
+export function EditNoteDialog({ open, onOpenChange, value, onChange, onSave, isReadOnly }: any) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Edit Catatan Aktivitas</DialogTitle>
+          <DialogTitle>{isReadOnly ? "Detail Catatan Aktivitas" : "Edit Catatan Aktivitas"}</DialogTitle>
         </DialogHeader>
         <div className="py-4 space-y-3">
           <Label className="font-semibold text-gray-700">Keterangan / Alasan</Label>
           <Textarea
             value={value}
             onChange={(e) => onChange(e.target.value)}
-            placeholder="Tulis keterangan lengkap di sini (contoh: Izin sakit, Perbaikan hardware, dll)..."
-            className="min-h-[120px] resize-none focus-visible:ring-emerald-500"
+            placeholder={isReadOnly ? "Tidak ada catatan." : "Tulis keterangan lengkap di sini..."}
+            className="min-h-[120px] resize-none focus-visible:ring-emerald-500 disabled:opacity-100 disabled:bg-gray-50 disabled:text-gray-700"
+            disabled={isReadOnly} 
           />
         </div>
         <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>Batal</Button>
-          <Button onClick={onSave} className="bg-emerald-600 hover:bg-emerald-700 text-white">Simpan Catatan</Button>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+            {isReadOnly ? "Tutup" : "Batal"}
+          </Button>
+          {/* Update: Tombol simpan hilang jika readOnly */}
+          {!isReadOnly && (
+            <Button onClick={onSave} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+              Simpan Catatan
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
