@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 import { useEffect, useState, useRef, useMemo } from "react";
 import { createSignalRConnection } from "@/lib/signalr";
@@ -30,6 +29,7 @@ export default function ActivityPage() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [noteDialog, setNoteDialog] = useState({ open: false, id: 0, val: "" });
+  const [userRole, setUserRole] = useState<string>(""); // State untuk menyimpan Role
 
   const globalSearchQuery = useSearchStore((state) => state.searchQuery);
   const setGlobalSearchQuery = useSearchStore((state) => state.setSearchQuery);
@@ -41,6 +41,20 @@ export default function ActivityPage() {
   });
 
   const { options, filters, handleFilterChange, filteredData, resetFilters } = useActivityFilter(data);
+
+  useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    if (token) {
+        try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            setUserRole(payload.role || "");
+        } catch (e) {
+            console.error("Failed to parse token role", e);
+        }
+    }
+  }, []);
+
+  const isSiswa = userRole === "siswa";
 
   const classOptions = useMemo(() => {
     if (classesData?.success && classesData.data) {
@@ -112,6 +126,8 @@ export default function ActivityPage() {
   }, []);
 
   const handleUpdateNote = async () => {
+    if (isSiswa) return; 
+
     toast.loading("Menyimpan...", { id: "note" });
     try {
       const res = await activityService.updateNote(noteDialog.id, noteDialog.val);
@@ -124,6 +140,7 @@ export default function ActivityPage() {
   };
 
   const handleDelete = async (id: string) => {
+    if (isSiswa) return; // Preventif delete untuk siswa
     if(!confirm("Hapus log ini?")) return;
     toast.loading("Menghapus...", { id: "delete" });
     try {
@@ -136,6 +153,7 @@ export default function ActivityPage() {
   };
 
   const handleDeleteAll = async () => {
+    if (isSiswa) return;
     const idsToDelete = filteredData.map((item: any) => item.id);
     if (idsToDelete.length === 0) return toast.error("Tidak ada data.");
     toast.loading("Proses hapus...", { id: "all" });
@@ -189,9 +207,13 @@ export default function ActivityPage() {
           <h1 className="text-lg font-bold text-gray-700 flex items-center gap-2">
             <Activity className="text-emerald-600" /> Log Aktivitas
           </h1>
-          <Button onClick={() => exportAktivitasToExcel(filteredData)} variant="outline" size="sm" className="w-full sm:w-auto gap-2 text-emerald-700 border-emerald-200">
-            Excel <Download size={16} />
-          </Button>
+          
+          {!isSiswa && (
+            <Button onClick={() => exportAktivitasToExcel(filteredData)} variant="outline" size="sm" className="w-full sm:w-auto gap-2 text-emerald-700 border-emerald-200">
+                Excel <Download size={16} />
+            </Button>
+          )}
+
         </div>
 
         <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 space-y-6 mx-1 sm:mx-0">
@@ -215,37 +237,61 @@ export default function ActivityPage() {
         <div className="space-y-4">
           <div className="flex justify-between items-center px-2">
              <h3 className="font-bold text-gray-700 text-sm tracking-wide">DATA LOG ({filteredData.length})</h3>
-             <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-red-500 hover:bg-red-50 text-xs" disabled={filteredData.length === 0}>
-                  Hapus Data <Trash size={12} className="ml-2"/>
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
-                  <AlertDialogDescription>Tindakan ini menghapus data yang dipilih secara permanen.</AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Batal</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDeleteAll} className="bg-red-600">Ya, Hapus</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-             </AlertDialog>
+             
+             {!isSiswa && (
+                <AlertDialog>
+                <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="sm" className="text-red-500 hover:bg-red-50 text-xs" disabled={filteredData.length === 0}>
+                    Hapus Data <Trash size={12} className="ml-2"/>
+                    </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                    <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
+                    <AlertDialogDescription>Tindakan ini menghapus data yang dipilih secara permanen.</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                    <AlertDialogCancel>Batal</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteAll} className="bg-red-600">Ya, Hapus</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+                </AlertDialog>
+             )}
           </div>
 
-          <ActivityTable data={paginatedData} loading={loading} page={currentPage} limit={limit} onEdit={(i) => setNoteDialog({open:true, id:i.id, val:i.keterangan||""})} onDelete={handleDelete} />
+          <ActivityTable 
+            data={paginatedData} 
+            loading={loading} 
+            page={currentPage} 
+            limit={limit} 
+            onEdit={(i) => setNoteDialog({open:true, id:i.id, val:i.keterangan||""})} 
+            onDelete={handleDelete}
+            isReadOnly={isSiswa} 
+          />
 
           <div className="md:hidden space-y-3 px-1">
             {paginatedData.map((item: any) => (
-              <ActivityCard key={item.id} item={item} onEdit={(i) => setNoteDialog({open:true, id:i.id, val:i.keterangan||""})} onDelete={handleDelete} />
+              <ActivityCard 
+                key={item.id} 
+                item={item} 
+                onEdit={(i) => setNoteDialog({open:true, id:i.id, val:i.keterangan||""})} 
+                onDelete={handleDelete}
+                isReadOnly={isSiswa}
+              />
             ))}
           </div>
         </div>
 
         <PaginationControls {...pagination} />
 
-        <EditNoteDialog open={noteDialog.open} onOpenChange={(o: boolean) => setNoteDialog({...noteDialog, open: o})} value={noteDialog.val} onChange={(v: string) => setNoteDialog({...noteDialog, val: v})} onSave={handleUpdateNote} />
+        <EditNoteDialog 
+            open={noteDialog.open} 
+            onOpenChange={(o: boolean) => setNoteDialog({...noteDialog, open: o})} 
+            value={noteDialog.val} 
+            onChange={(v: string) => setNoteDialog({...noteDialog, val: v})} 
+            onSave={handleUpdateNote} 
+            isReadOnly={isSiswa}
+        />
       </div>
     </RoleBasedGuard>
   );

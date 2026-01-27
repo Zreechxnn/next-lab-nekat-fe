@@ -53,7 +53,6 @@ export function SelectBox({ label, name, val, fn, opts, k }: SelectBoxProps) {
 
           {opts.map((o) => (
             <SelectItem key={o.id} value={String(o.id)}>
-              {/* Tampilkan Nama Periode jika ada (untuk Kelas) */}
               {o.periodeNama ? `${o[k]} (${o.periodeNama})` : o[k]}
             </SelectItem>
           ))}
