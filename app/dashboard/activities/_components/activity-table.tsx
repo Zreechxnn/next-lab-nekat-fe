@@ -43,7 +43,9 @@ export function ActivityTable({ data, loading, page, limit, onEdit, onDelete, is
               return (
                 <TableRow key={item.id} className="hover:bg-emerald-50/50 transition-colors group">
                   <TableCell className="text-center text-gray-500 font-mono text-xs">{(page - 1) * limit + idx + 1}</TableCell>
-                  <TableCell>
+                  
+                  {/* Identitas Protected */}
+                  <TableCell className="notranslate" translate="no">
                     <div className="flex flex-col">
                       <span className="font-semibold text-gray-800 text-sm">
                         {item.userUsername ?? item.kelasNama}
@@ -56,7 +58,7 @@ export function ActivityTable({ data, loading, page, limit, onEdit, onDelete, is
 
                   <TableCell>
                     {item.userKelasNama ? (
-                      <span className="text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-1 rounded border border-indigo-100">
+                      <span className="text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-1 rounded border border-indigo-100 notranslate" translate="no">
                          {item.userKelasNama}
                       </span>
                     ) : (
@@ -65,17 +67,22 @@ export function ActivityTable({ data, loading, page, limit, onEdit, onDelete, is
                   </TableCell>
 
                   <TableCell className="text-sm font-medium text-gray-700">{item.ruanganNama}</TableCell>
-                  <TableCell>
+                  
+                  {/* Waktu Protected */}
+                  <TableCell className="notranslate" translate="no">
                     <div className="flex flex-col text-xs gap-1">
                        <span className="flex items-center gap-1 text-emerald-700 font-medium"><ArrowRight size={10}/> {formatDateTime(item.timestampMasuk)}</span>
                        {isCheckOut && <span className="flex items-center gap-1 text-gray-500"><ArrowRight size={10} className="text-red-400"/> {formatDateTime(item.timestampKeluar)}</span>}
                     </div>
                   </TableCell>
-                  <TableCell>
+                  
+                  {/* Durasi Protected */}
+                  <TableCell className="notranslate" translate="no">
                     <div className="flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full w-fit">
                        <Clock size={10} /> {calculateDuration(item.timestampMasuk, item.timestampKeluar)}
                     </div>
                   </TableCell>
+                  
                   <TableCell>
                     <Badge variant={isCheckOut ? "secondary" : "default"} className={`text-[10px] ${isCheckOut ? 'bg-gray-100 text-gray-500' : 'bg-emerald-100 text-emerald-700'}`}>
                        {isCheckOut ? "SELESAI" : "AKTIF"}
@@ -84,8 +91,8 @@ export function ActivityTable({ data, loading, page, limit, onEdit, onDelete, is
                   <TableCell className="text-xs text-gray-600 truncate max-w-[150px] italic">{item.keterangan || "-"}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" 
-                        className={`h-7 w-7 ${isReadOnly ? 'text-blue-400 hover:text-blue-600 hover:bg-blue-50' : 'text-gray-400 hover:text-emerald-600'}`} 
+                      <Button variant="ghost" size="icon"
+                        className={`h-7 w-7 ${isReadOnly ? 'text-blue-400 hover:text-blue-600 hover:bg-blue-50' : 'text-gray-400 hover:text-emerald-600'}`}
                         onClick={() => onEdit(item)}>
                         {isReadOnly ? <Eye size={14} /> : <Pencil size={14} />}
                       </Button>

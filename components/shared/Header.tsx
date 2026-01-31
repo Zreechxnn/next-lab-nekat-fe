@@ -88,6 +88,7 @@ export default function Header({ onClick }: { onClick: () => void }) {
       >
         <DropdownMenuTrigger asChild>
           <button
+          suppressHydrationWarning={true}
             className={`
               flex items-center gap-3 px-3 py-2
               rounded-full border

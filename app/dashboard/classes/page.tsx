@@ -4,7 +4,7 @@
 import { useLocalPagination } from "@/hooks/useLocalPagination";
 import { classService } from "@/services/class.service";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState, useRef } from "react"; // Tambah useRef
+import { useEffect, useState, useRef } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,8 +16,8 @@ import ClassForm from "./_components/ClassForm";
 import { PaginationControls } from "@/components/shared/PaginationControls";
 import { useSearchStore } from "@/store/useSearchStore";
 import RoleBasedGuard from "@/components/shared/RoleBasedGuard";
+import AuthGuard from "@/components/shared/AuthGuard";
 
-// IMPORT SIGNALR
 import { createSignalRConnection } from "@/lib/signalr";
 import { HubConnection, HubConnectionState } from "@microsoft/signalr";
 
@@ -28,8 +28,7 @@ export default function ClassesPage() {
   const queryClient = useQueryClient();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedClass, setSelectedClass] = useState(null);
-  
-  // Ref untuk koneksi SignalR
+
   const connectionRef = useRef<HubConnection | null>(null);
 
   const [deleteDialog, setDeleteDialog] = useState({ open: false, id: "", nama: "" });
@@ -42,7 +41,6 @@ export default function ClassesPage() {
     queryFn: () => classService.getAll(),
   });
 
-  // Reset search saat masuk halaman
   useEffect(() => {
     setGlobalSearchQuery("");
     return () => setGlobalSearchQuery("");
@@ -60,7 +58,6 @@ export default function ClassesPage() {
     setSearchQuery(globalSearchQuery);
   }, [globalSearchQuery, setSearchQuery]);
 
-  // --- INTEGRASI SIGNALR (Realtime Update) ---
   useEffect(() => {
     const token = localStorage.getItem("authToken");
     if (!token) return;
@@ -73,16 +70,12 @@ export default function ClassesPage() {
         try {
           await connection.start();
 
-          // Dengarkan event "KelasChanged" dari Backend
           connection.on("KelasChanged", (payload: any) => {
             console.log("Realtime Kelas:", payload);
-            
-            // Tampilkan notifikasi kecil
+
             if (payload.Action === "KELAS_CREATED") toast.info("Info: Ada kelas baru ditambahkan");
             if (payload.Action === "KELAS_DELETED") toast.warning("Info: Sebuah kelas telah dihapus");
 
-            // INVALIDATE QUERY: Memaksa React Query mengambil data terbaru dari server
-            // Ini cara paling aman agar data di tabel selalu sinkron
             queryClient.invalidateQueries({ queryKey: ["classes"] });
           });
 
@@ -98,13 +91,10 @@ export default function ClassesPage() {
       if (connection) connection.stop().catch(() => {});
     };
   }, [queryClient]);
-  // -------------------------------------------
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => classService.deleteById(id),
     onSuccess: () => {
-      // Tidak perlu invalidate manual disini jika SignalR berjalan, 
-      // tapi tetap biarkan untuk feedback instan user yang melakukan aksi
       queryClient.invalidateQueries({ queryKey: ["classes"] });
       toast.success("Kelas berhasil dihapus.");
       setDeleteDialog({ open: false, id: "", nama: "" });
@@ -120,82 +110,84 @@ export default function ClassesPage() {
   };
 
   return (
-    <RoleBasedGuard allowedRoles={["admin", "guru", "operator"]}>
-      <div className="flex flex-col gap-6 font-sans pb-20">
+    // WRAPPER UTAMA: AuthGuard memastikan login selesai, baru RoleBasedGuard jalan
+    <AuthGuard>
+      <RoleBasedGuard allowedRoles={["admin", "guru", "operator"]}>
+        <div className="flex flex-col gap-6 font-sans pb-20">
 
-        {/* Header Section */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-            <div className="bg-indigo-100 p-2 rounded-lg">
-              <Book className="text-indigo-600" size={20} />
-            </div>
-            Manajemen Kelas
-          </h3>
-          <Button onClick={openCreate} className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-100 shadow-lg">
-            <Plus size={18} className="mr-2" /> Tambah Kelas
-          </Button>
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+              <div className="bg-indigo-100 p-2 rounded-lg">
+                <Book className="text-indigo-600" size={20} />
+              </div>
+              Manajemen Kelas
+            </h3>
+            <Button onClick={openCreate} className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-100 shadow-lg">
+              <Plus size={18} className="mr-2" /> Tambah Kelas
+            </Button>
+          </div>
+
+          {/* Desktop View */}
+          <ClassTable
+            data={paginatedData}
+            loading={isLoading}
+            page={currentPage}
+            limit={limit}
+            onEdit={openEdit}
+            onConfirmDelete={openDelete}
+          />
+
+          {/* Mobile View */}
+          <div className="md:hidden space-y-3">
+            {isLoading ? (
+              <div className="text-center py-10 text-gray-400 text-sm">Memuat data...</div>
+            ) : paginatedData.length === 0 ? (
+              <div className="text-center py-10 text-gray-400 italic text-sm">Tidak ada data.</div>
+            ) : (
+              paginatedData.map((item: any, index: number) => (
+                <ClassCard
+                  key={item.id}
+                  item={item}
+                  index={(currentPage - 1) * limit + index}
+                  onEdit={openEdit}
+                  onConfirmDelete={openDelete}
+                />
+              ))
+            )}
+          </div>
+
+          <PaginationControls {...pagination} />
+
+          {/* Form Dialog */}
+          <ClassForm
+            isOpen={isFormOpen}
+            onClose={() => setIsFormOpen(false)}
+            initialData={selectedClass}
+          />
+
+          {/* Delete Dialog (Global) */}
+          <AlertDialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog(prev => ({ ...prev, open }))}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Hapus Kelas?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Anda akan menghapus kelas <b>{deleteDialog.nama}</b>. Tindakan ini tidak dapat dibatalkan.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Batal</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => deleteMutation.mutate(deleteDialog.id)}
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                >
+                  {deleteMutation.isPending ? "Menghapus..." : "Ya, Hapus"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
         </div>
-
-        {/* Desktop View */}
-        <ClassTable
-          data={paginatedData}
-          loading={isLoading}
-          page={currentPage}
-          limit={limit}
-          onEdit={openEdit}
-          onConfirmDelete={openDelete}
-        />
-
-        {/* Mobile View */}
-        <div className="md:hidden space-y-3">
-          {isLoading ? (
-            <div className="text-center py-10 text-gray-400 text-sm">Memuat data...</div>
-          ) : paginatedData.length === 0 ? (
-            <div className="text-center py-10 text-gray-400 italic text-sm">Tidak ada data.</div>
-          ) : (
-            paginatedData.map((item: any, index: number) => (
-              <ClassCard
-                key={item.id}
-                item={item}
-                index={(currentPage - 1) * limit + index}
-                onEdit={openEdit}
-                onConfirmDelete={openDelete}
-              />
-            ))
-          )}
-        </div>
-
-        <PaginationControls {...pagination} />
-
-        {/* Form Dialog */}
-        <ClassForm
-          isOpen={isFormOpen}
-          onClose={() => setIsFormOpen(false)}
-          initialData={selectedClass}
-        />
-
-        {/* Delete Dialog (Global) */}
-        <AlertDialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog(prev => ({ ...prev, open }))}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Hapus Kelas?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Anda akan menghapus kelas <b>{deleteDialog.nama}</b>. Tindakan ini tidak dapat dibatalkan.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Batal</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={() => deleteMutation.mutate(deleteDialog.id)}
-                className="bg-red-600 hover:bg-red-700 text-white"
-              >
-                {deleteMutation.isPending ? "Menghapus..." : "Ya, Hapus"}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-
-      </div>
-    </RoleBasedGuard>
+      </RoleBasedGuard>
+    </AuthGuard>
   );
 }

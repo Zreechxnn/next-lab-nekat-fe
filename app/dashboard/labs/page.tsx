@@ -16,6 +16,7 @@ import { FlaskConical, Plus } from "lucide-react";
 import LabForm from "./_components/LabForm";
 import { useSearchStore } from "@/store/useSearchStore";
 import RoleBasedGuard from "@/components/shared/RoleBasedGuard";
+import AuthGuard from "@/components/shared/AuthGuard";
 
 import { createSignalRConnection } from "@/lib/signalr";
 import { HubConnection, HubConnectionState } from "@microsoft/signalr";
@@ -125,55 +126,57 @@ export default function LabsPage() {
   const openDelete = (id: string, nama: string) => { setDeleteDialog({ open: true, id, nama }); };
 
   return (
-    <RoleBasedGuard allowedRoles={["admin", "guru", "operator"]}>
-      <div className="flex flex-col gap-6 font-sans pb-20">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-              <div className="bg-indigo-100 p-2 rounded-lg">
-                <FlaskConical className="text-indigo-600" size={20} />
-              </div>
-              Daftar Laboratorium
-          </h3>
-          <Button onClick={openCreate} className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-100 shadow-lg">
-            <Plus size={18} className="mr-2" /> Tambah Lab
-          </Button>
+    <AuthGuard>
+      <RoleBasedGuard allowedRoles={["admin", "guru", "operator"]}>
+        <div className="flex flex-col gap-6 font-sans pb-20">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                <div className="bg-indigo-100 p-2 rounded-lg">
+                  <FlaskConical className="text-indigo-600" size={20} />
+                </div>
+                Daftar Laboratorium
+            </h3>
+            <Button onClick={openCreate} className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-100 shadow-lg">
+              <Plus size={18} className="mr-2" /> Tambah Lab
+            </Button>
+          </div>
+
+          <LabTable data={paginatedData} loading={isLoading} page={currentPage} limit={limit} onEdit={openEdit} onConfirmDelete={openDelete} />
+
+          <div className="md:hidden space-y-3">
+            {isLoading ? (
+                <div className="text-center py-10 text-gray-400 text-sm">Memuat data...</div>
+            ) : paginatedData.length === 0 ? (
+                <div className="text-center py-10 text-gray-400 italic text-sm">Tidak ada data lab.</div>
+            ) : (
+                paginatedData.map((item: any, index: number) => (
+                  <LabCard key={item.id} item={item} index={(currentPage - 1) * limit + index} onEdit={openEdit} onConfirmDelete={openDelete} />
+                ))
+            )}
+          </div>
+
+          <PaginationControls {...pagination} />
+
+          <LabForm isOpen={isFormOpen} onClose={() => setIsFormOpen(false)} initialData={selectedLab} />
+
+          <AlertDialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog(prev => ({ ...prev, open }))}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Hapus Laboratorium?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Anda yakin ingin menghapus <b>{deleteDialog.nama}</b>? Data yang dihapus tidak dapat dikembalikan.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Batal</AlertDialogCancel>
+                <AlertDialogAction onClick={() => deleteMutation.mutate(deleteDialog.id)} className="bg-red-600 text-white">
+                  {deleteMutation.isPending ? "Menghapus..." : "Ya, Hapus"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
-
-        <LabTable data={paginatedData} loading={isLoading} page={currentPage} limit={limit} onEdit={openEdit} onConfirmDelete={openDelete} />
-
-        <div className="md:hidden space-y-3">
-          {isLoading ? (
-              <div className="text-center py-10 text-gray-400 text-sm">Memuat data...</div>
-          ) : paginatedData.length === 0 ? (
-              <div className="text-center py-10 text-gray-400 italic text-sm">Tidak ada data lab.</div>
-          ) : (
-              paginatedData.map((item: any, index: number) => (
-                <LabCard key={item.id} item={item} index={(currentPage - 1) * limit + index} onEdit={openEdit} onConfirmDelete={openDelete} />
-              ))
-          )}
-        </div>
-
-        <PaginationControls {...pagination} />
-
-        <LabForm isOpen={isFormOpen} onClose={() => setIsFormOpen(false)} initialData={selectedLab} />
-
-        <AlertDialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog(prev => ({ ...prev, open }))}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Hapus Laboratorium?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Anda yakin ingin menghapus <b>{deleteDialog.nama}</b>? Data yang dihapus tidak dapat dikembalikan.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Batal</AlertDialogCancel>
-              <AlertDialogAction onClick={() => deleteMutation.mutate(deleteDialog.id)} className="bg-red-600 text-white">
-                {deleteMutation.isPending ? "Menghapus..." : "Ya, Hapus"}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
-    </RoleBasedGuard>
+      </RoleBasedGuard>
+    </AuthGuard>
   );
 }

@@ -16,7 +16,7 @@ export default function DashboardLayout({
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <SignalRProvider>
         <Sidebar isOpenSidebar={isOpenSidebar} setIsOpenSidebar={setIsOpenSidebar} />
-        <div className="md:ml-[276px] transition-all duration-300 px-6 pt-8">
+        <div className="md:ml-[276px] transition-all duration-300 px-6 pt-8 relative z-0">
           <Header onClick={() => setIsOpenSidebar(!isOpenSidebar)} />
           <main className="max-w-7xl mx-auto">{children}</main>
         </div>
