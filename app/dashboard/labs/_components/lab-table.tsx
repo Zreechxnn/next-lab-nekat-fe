@@ -1,7 +1,7 @@
 "use client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Edit, Trash} from "lucide-react";
+import { Edit, Trash } from "lucide-react";
 
 interface LabTableProps {
   data: any[];
@@ -19,19 +19,31 @@ export function LabTable({ data, loading, page, limit, onEdit, onConfirmDelete }
         <TableHeader>
           <TableRow className="bg-gray-50/80">
             <TableHead className="w-16 text-center font-bold text-gray-600">No</TableHead>
+            {/* KOLOM BARU: ID */}
+            <TableHead className="w-24 text-center font-bold text-gray-600">ID</TableHead>
             <TableHead className="font-bold text-gray-600">Nama Laboratorium</TableHead>
             <TableHead className="text-center font-bold text-gray-600 w-[140px]">Aksi</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {loading ? (
-            <TableRow><TableCell colSpan={3} className="py-12 text-center text-gray-500">Memuat data...</TableCell></TableRow>
+            // colSpan diupdate jadi 4
+            <TableRow><TableCell colSpan={4} className="py-12 text-center text-gray-500">Memuat data...</TableCell></TableRow>
           ) : data.length === 0 ? (
-            <TableRow><TableCell colSpan={3} className="py-12 text-center text-gray-400 italic">Data laboratorium kosong.</TableCell></TableRow>
+            // colSpan diupdate jadi 4
+            <TableRow><TableCell colSpan={4} className="py-12 text-center text-gray-400 italic">Data laboratorium kosong.</TableCell></TableRow>
           ) : (
             data.map((item, idx) => (
               <TableRow key={item.id} className="hover:bg-indigo-50/30 transition-colors">
                 <TableCell className="text-center font-mono text-gray-500 text-xs">{(page - 1) * limit + idx + 1}</TableCell>
+                
+                {/* DATA BARU: ID */}
+                <TableCell className="text-center font-mono text-gray-600 text-xs">
+                    <span className="bg-gray-100 px-2 py-1 rounded border border-gray-200">
+                        {item.id}
+                    </span>
+                </TableCell>
+
                 <TableCell>
                    <div className="flex items-center gap-3">
                       <span className="font-semibold text-gray-800 text-sm">{item.nama}</span>
