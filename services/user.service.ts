@@ -4,7 +4,7 @@ export type UserPayload = {
   username: string;
   password?: string;
   role: string;
-  kelasId?: number | null; // Pastikan ini ada
+  kelasId?: number | null;
 };
 
 const getAll = async () => {

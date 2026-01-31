@@ -1,7 +1,7 @@
 "use client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, ArrowRight, Pencil, Trash, MapPin, User, BookOpen, Eye } from "lucide-react"; // Import Eye
+import { Clock, ArrowRight, Pencil, Trash, MapPin, User, BookOpen, Eye } from "lucide-react"; 
 import { formatDateTime, calculateDuration } from "@/utils/activity-helpers";
 
 interface ActivityCardProps {
@@ -19,7 +19,7 @@ export function ActivityCard({ item, onEdit, onDelete, isReadOnly = false }: Act
       <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${isCheckOut ? 'bg-gray-300' : 'bg-emerald-500'}`} />
 
       <div className="flex justify-between items-start pl-3">
-        <div>
+        <div className="notranslate" translate="no"> {/* Protected User Info */}
           <h4 className="font-bold text-gray-800 text-sm truncate max-w-[200px]">
             {item.userUsername ?? item.kelasNama ?? "Unknown"}
           </h4>
@@ -44,13 +44,14 @@ export function ActivityCard({ item, onEdit, onDelete, isReadOnly = false }: Act
           <span className="text-gray-400 font-medium flex items-center gap-1"><MapPin size={10}/> Ruangan</span>
           <span className="font-semibold text-gray-700 truncate">{item.ruanganNama}</span>
         </div>
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-0.5 notranslate" translate="no"> {/* Protected Duration */}
           <span className="text-gray-400 font-medium flex items-center gap-1"><Clock size={10}/> Durasi</span>
           <span className="font-semibold text-emerald-600">{calculateDuration(item.timestampMasuk, item.timestampKeluar)}</span>
         </div>
       </div>
 
-      <div className="bg-gray-50 p-2.5 rounded-lg text-xs flex justify-between items-center ml-3 border border-gray-100">
+      {/* Protected Timestamp */}
+      <div className="bg-gray-50 p-2.5 rounded-lg text-xs flex justify-between items-center ml-3 border border-gray-100 notranslate" translate="no">
           <span className="text-emerald-700 font-medium">{formatDateTime(item.timestampMasuk)}</span>
           <ArrowRight size={12} className="text-gray-300" />
           <span className={isCheckOut ? "text-red-500 font-medium" : "text-gray-400 italic"}>
@@ -63,12 +64,12 @@ export function ActivityCard({ item, onEdit, onDelete, isReadOnly = false }: Act
             {item.keterangan || "Tidak ada catatan"}
           </p>
           <div className="flex gap-1 shrink-0">
-             <Button size="icon" variant="ghost" 
-                className={`h-8 w-8 rounded-full ${isReadOnly ? 'text-gray-400 hover:text-blue-600 hover:bg-blue-50' : 'text-gray-400 hover:text-emerald-600 hover:bg-emerald-50'}`} 
+             <Button size="icon" variant="ghost"
+                className={`h-8 w-8 rounded-full ${isReadOnly ? 'text-gray-400 hover:text-blue-600 hover:bg-blue-50' : 'text-gray-400 hover:text-emerald-600 hover:bg-emerald-50'}`}
                 onClick={() => onEdit(item)}>
                 {isReadOnly ? <Eye size={14} /> : <Pencil size={14} />}
              </Button>
-             
+
              {!isReadOnly && (
                 <Button size="icon" variant="ghost" className="h-8 w-8 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full" onClick={() => onDelete(item.id)}>
                    <Trash size={14} />

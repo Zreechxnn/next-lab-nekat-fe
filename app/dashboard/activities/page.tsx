@@ -17,6 +17,8 @@ import {
 import { useLocalPagination } from "@/hooks/useLocalPagination";
 import { PaginationControls } from "@/components/shared/PaginationControls";
 import RoleBasedGuard from "@/components/shared/RoleBasedGuard";
+import AuthGuard from "@/components/shared/AuthGuard"; // Import AuthGuard
+import { useAuthStore } from "@/store/useAuthStore"; // Import Store
 import { useSearchStore } from "@/store/useSearchStore";
 import { useQuery } from "@tanstack/react-query";
 
@@ -29,7 +31,11 @@ export default function ActivityPage() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [noteDialog, setNoteDialog] = useState({ open: false, id: 0, val: "" });
-  const [userRole, setUserRole] = useState<string>(""); // State untuk menyimpan Role
+  
+  // Gunakan useAuthStore daripada parsing token manual agar sinkron
+  const { user } = useAuthStore();
+  const userRole = user?.role?.toLowerCase() || "";
+  const isSiswa = userRole === "siswa";
 
   const globalSearchQuery = useSearchStore((state) => state.searchQuery);
   const setGlobalSearchQuery = useSearchStore((state) => state.setSearchQuery);
@@ -42,19 +48,7 @@ export default function ActivityPage() {
 
   const { options, filters, handleFilterChange, filteredData, resetFilters } = useActivityFilter(data);
 
-  useEffect(() => {
-    const token = localStorage.getItem("authToken");
-    if (token) {
-        try {
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            setUserRole(payload.role || "");
-        } catch (e) {
-            console.error("Failed to parse token role", e);
-        }
-    }
-  }, []);
-
-  const isSiswa = userRole === "siswa";
+  // Hapus useEffect manual parsing token disini karena sudah diganti useAuthStore di atas
 
   const classOptions = useMemo(() => {
     if (classesData?.success && classesData.data) {
@@ -126,7 +120,7 @@ export default function ActivityPage() {
   }, []);
 
   const handleUpdateNote = async () => {
-    if (isSiswa) return; 
+    if (isSiswa) return;
 
     toast.loading("Menyimpan...", { id: "note" });
     try {
@@ -140,7 +134,7 @@ export default function ActivityPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (isSiswa) return; // Preventif delete untuk siswa
+    if (isSiswa) return;
     if(!confirm("Hapus log ini?")) return;
     toast.loading("Menghapus...", { id: "delete" });
     try {
@@ -201,98 +195,104 @@ export default function ActivityPage() {
   }, [filteredData]);
 
   return (
-    <RoleBasedGuard allowedRoles={["admin", "operator", "guru", "siswa"]}>
-      <div className="space-y-6 pb-20 font-sans bg-gray-50/50 min-h-screen">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl border shadow-sm mx-1 sm:mx-0">
-          <h1 className="text-lg font-bold text-gray-700 flex items-center gap-2">
-            <Activity className="text-emerald-600" /> Log Aktivitas
-          </h1>
-          
-          {!isSiswa && (
-            <Button onClick={() => exportAktivitasToExcel(filteredData)} variant="outline" size="sm" className="w-full sm:w-auto gap-2 text-emerald-700 border-emerald-200">
-                Excel <Download size={16} />
-            </Button>
-          )}
+    // PENTING: AuthGuard di luar, RoleBasedGuard di dalam
+    <AuthGuard>
+      <RoleBasedGuard allowedRoles={["admin", "operator", "guru", "siswa"]}>
+        <div className="space-y-6 pb-20 font-sans bg-gray-50/50 min-h-screen">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl border shadow-sm mx-1 sm:mx-0">
+            <h1 className="text-lg font-bold text-gray-700 flex items-center gap-2">
+              <Activity className="text-emerald-600" /> Log Aktivitas
+            </h1>
 
-        </div>
+            {!isSiswa && (
+              <Button onClick={() => exportAktivitasToExcel(filteredData)} variant="outline" size="sm" className="w-full sm:w-auto gap-2 text-emerald-700 border-emerald-200">
+                  Excel <Download size={16} />
+              </Button>
+            )}
 
-        <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 space-y-6 mx-1 sm:mx-0">
-          <div className="flex justify-between items-center border-b pb-2">
-            <h3 className="font-semibold text-gray-700 flex items-center gap-2 text-sm"><Filter size={16}/> Filter</h3>
-            <Button variant="ghost" size="sm" onClick={resetFilters} className="text-xs h-7">
-              <RotateCcw size={12} className="mr-1" /> Reset
-            </Button>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-            <SelectBox label="Lab" name="lab" val={filters.lab} fn={handleFilterChange} opts={options.labs} k="nama" />
-            <SelectBox label="Kelas" name="kelas" val={filters.kelas} fn={handleFilterChange} opts={classOptions} k="nama" />
-            <SelectBox label="User" name="user" val={filters.user} fn={handleFilterChange} opts={options.users} k="username" />
-            <DateInput label="Mulai" name="startDate" val={filters.startDate} fn={handleFilterChange} />
-            <DateInput label="Sampai" name="endDate" val={filters.endDate} fn={handleFilterChange} />
-            <StatusSelect val={filters.status} fn={(v) => handleFilterChange({ target: { name: "status", value: v } })} />
-          </div>
-          <ActivityStats stats={stats} />
-        </div>
-
-        <div className="space-y-4">
-          <div className="flex justify-between items-center px-2">
-             <h3 className="font-bold text-gray-700 text-sm tracking-wide">DATA LOG ({filteredData.length})</h3>
-             
-             {!isSiswa && (
-                <AlertDialog>
-                <AlertDialogTrigger asChild>
-                    <Button variant="ghost" size="sm" className="text-red-500 hover:bg-red-50 text-xs" disabled={filteredData.length === 0}>
-                    Hapus Data <Trash size={12} className="ml-2"/>
-                    </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                    <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
-                    <AlertDialogDescription>Tindakan ini menghapus data yang dipilih secara permanen.</AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                    <AlertDialogCancel>Batal</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDeleteAll} className="bg-red-600">Ya, Hapus</AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-                </AlertDialog>
-             )}
           </div>
 
-          <ActivityTable 
-            data={paginatedData} 
-            loading={loading} 
-            page={currentPage} 
-            limit={limit} 
-            onEdit={(i) => setNoteDialog({open:true, id:i.id, val:i.keterangan||""})} 
-            onDelete={handleDelete}
-            isReadOnly={isSiswa} 
+          <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 space-y-6 mx-1 sm:mx-0">
+            <div className="flex justify-between items-center border-b pb-2">
+              <h3 className="font-semibold text-gray-700 flex items-center gap-2 text-sm"><Filter size={16}/> Filter</h3>
+              <Button variant="ghost" size="sm" onClick={resetFilters} className="text-xs h-7">
+                <RotateCcw size={12} className="mr-1" /> Reset
+              </Button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              <SelectBox label="Lab" name="lab" val={filters.lab} fn={handleFilterChange} opts={options.labs} k="nama" />
+              <SelectBox label="Kelas" name="kelas" val={filters.kelas} fn={handleFilterChange} opts={classOptions} k="nama" />
+              <SelectBox label="User" name="user" val={filters.user} fn={handleFilterChange} opts={options.users} k="username" />
+              <DateInput label="Mulai" name="startDate" val={filters.startDate} fn={handleFilterChange} />
+              <DateInput label="Sampai" name="endDate" val={filters.endDate} fn={handleFilterChange} />
+              <StatusSelect val={filters.status} fn={(v) => handleFilterChange({ target: { name: "status", value: v } })} />
+            </div>
+
+            <ActivityStats stats={stats} />
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex justify-between items-center px-2">
+                <h3 className="font-bold text-gray-700 text-sm tracking-wide flex gap-1">
+                  DATA LOG <span className="notranslate" translate="no">({filteredData.length})</span>
+                </h3>
+
+                {!isSiswa && (
+                  <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="sm" className="text-red-500 hover:bg-red-50 text-xs" disabled={filteredData.length === 0}>
+                      Hapus Data <Trash size={12} className="ml-2"/>
+                      </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                      <AlertDialogHeader>
+                      <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
+                      <AlertDialogDescription>Tindakan ini menghapus data yang dipilih secara permanen.</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                      <AlertDialogCancel>Batal</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDeleteAll} className="bg-red-600">Ya, Hapus</AlertDialogAction>
+                      </AlertDialogFooter>
+                  </AlertDialogContent>
+                  </AlertDialog>
+                )}
+            </div>
+
+            <ActivityTable
+              data={paginatedData}
+              loading={loading}
+              page={currentPage}
+              limit={limit}
+              onEdit={(i) => setNoteDialog({open:true, id:i.id, val:i.keterangan||""})}
+              onDelete={handleDelete}
+              isReadOnly={isSiswa}
+            />
+
+            <div className="md:hidden space-y-3 px-1">
+              {paginatedData.map((item: any) => (
+                <ActivityCard
+                  key={item.id}
+                  item={item}
+                  onEdit={(i) => setNoteDialog({open:true, id:i.id, val:i.keterangan||""})}
+                  onDelete={handleDelete}
+                  isReadOnly={isSiswa}
+                />
+              ))}
+            </div>
+          </div>
+
+          <PaginationControls {...pagination} />
+
+          <EditNoteDialog
+              open={noteDialog.open}
+              onOpenChange={(o: boolean) => setNoteDialog({...noteDialog, open: o})}
+              value={noteDialog.val}
+              onChange={(v: string) => setNoteDialog({...noteDialog, val: v})}
+              onSave={handleUpdateNote}
+              isReadOnly={isSiswa}
           />
-
-          <div className="md:hidden space-y-3 px-1">
-            {paginatedData.map((item: any) => (
-              <ActivityCard 
-                key={item.id} 
-                item={item} 
-                onEdit={(i) => setNoteDialog({open:true, id:i.id, val:i.keterangan||""})} 
-                onDelete={handleDelete}
-                isReadOnly={isSiswa}
-              />
-            ))}
-          </div>
         </div>
-
-        <PaginationControls {...pagination} />
-
-        <EditNoteDialog 
-            open={noteDialog.open} 
-            onOpenChange={(o: boolean) => setNoteDialog({...noteDialog, open: o})} 
-            value={noteDialog.val} 
-            onChange={(v: string) => setNoteDialog({...noteDialog, val: v})} 
-            onSave={handleUpdateNote} 
-            isReadOnly={isSiswa}
-        />
-      </div>
-    </RoleBasedGuard>
+      </RoleBasedGuard>
+    </AuthGuard>
   );
 }

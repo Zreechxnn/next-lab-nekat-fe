@@ -1,6 +1,7 @@
 "use client";
+
 import { useAuthStore } from "@/store/useAuthStore";
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import Unauthorized from "./Unauthorized";
 
 interface RoleBasedGuardProps {
@@ -12,9 +13,23 @@ export default function RoleBasedGuard({
   children,
   allowedRoles,
 }: RoleBasedGuardProps) {
-  const user = useAuthStore((state) => state.user);
+  const { user, isLoading } = useAuthStore();
+  const [isMounted, setIsMounted] = useState(false);
 
-  if (!user || !user.role || !allowedRoles.includes(user.role.toLowerCase())) {
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  if (!isMounted || isLoading) {
+    return null;
+  }
+
+  if (!user || !user.role) {
+    return null;
+  }
+
+  const userRole = user.role.toLowerCase();
+  if (!allowedRoles.includes(userRole)) {
     return <Unauthorized />;
   }
 

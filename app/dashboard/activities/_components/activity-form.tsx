@@ -19,14 +19,13 @@ export function EditNoteDialog({ open, onOpenChange, value, onChange, onSave, is
             onChange={(e) => onChange(e.target.value)}
             placeholder={isReadOnly ? "Tidak ada catatan." : "Tulis keterangan lengkap di sini..."}
             className="min-h-[120px] resize-none focus-visible:ring-emerald-500 disabled:opacity-100 disabled:bg-gray-50 disabled:text-gray-700"
-            disabled={isReadOnly} 
+            disabled={isReadOnly}
           />
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             {isReadOnly ? "Tutup" : "Batal"}
           </Button>
-          {/* Update: Tombol simpan hilang jika readOnly */}
           {!isReadOnly && (
             <Button onClick={onSave} className="bg-emerald-600 hover:bg-emerald-700 text-white">
               Simpan Catatan
@@ -46,7 +45,8 @@ export function StatCard({ title, val, bg, Icon }: any) {
       </div>
       <div className="overflow-hidden">
         <p className="text-[10px] font-medium opacity-80 uppercase tracking-wider truncate">{title}</p>
-        <p className="text-lg font-bold leading-tight truncate">{val}</p>
+        {/* Update: Menambahkan notranslate agar angka tidak diubah google translate */}
+        <p className="text-lg font-bold leading-tight truncate notranslate" translate="no">{val}</p>
       </div>
     </div>
   );

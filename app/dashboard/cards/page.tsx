@@ -17,6 +17,7 @@ import { createSignalRConnection } from "@/lib/signalr";
 import { HubConnection, HubConnectionState } from "@microsoft/signalr";
 import { useSearchStore } from "@/store/useSearchStore";
 import RoleBasedGuard from "@/components/shared/RoleBasedGuard";
+import AuthGuard from "@/components/shared/AuthGuard"; // Import AuthGuard
 import { CardCard } from "./_components/card-card";
 import { CardTable } from "./_components/card-table";
 
@@ -111,43 +112,46 @@ export default function CardsPage() {
   });
 
   return (
-    <RoleBasedGuard allowedRoles={["admin", "operator"]}>
-      <div className="flex flex-col gap-6 font-sans pb-20">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-           <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-             <div className="bg-indigo-100 p-2 rounded-lg"><IdCard className="text-indigo-600" size={20} /></div>
-             Daftar Kartu RFID
-           </h3>
-           <Button onClick={() => { setSelectedCard(null); setIsModalOpen(true); }} className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white">
-             <Plus size={18} className="mr-2" /> Tambah Kartu
-           </Button>
+    // WRAPPER: AuthGuard (Loading) -> RoleBasedGuard (Permission)
+    <AuthGuard>
+      <RoleBasedGuard allowedRoles={["admin", "operator"]}>
+        <div className="flex flex-col gap-6 font-sans pb-20">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+             <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+               <div className="bg-indigo-100 p-2 rounded-lg"><IdCard className="text-indigo-600" size={20} /></div>
+               Daftar Kartu RFID
+             </h3>
+             <Button onClick={() => { setSelectedCard(null); setIsModalOpen(true); }} className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white">
+               <Plus size={18} className="mr-2" /> Tambah Kartu
+             </Button>
+          </div>
+
+          <CardTable data={paginatedData} loading={isLoading} page={currentPage} limit={limit} onEdit={(item) => { setSelectedCard(item); setIsModalOpen(true); }} onConfirmDelete={(id, uid) => setDeleteDialog({ open: true, id, uid })} />
+
+          <div className="md:hidden space-y-3">
+            {paginatedData.map((item: any, index: number) => (
+              <CardCard key={item.id} item={item} index={(currentPage - 1) * limit + index} onEdit={(item) => { setSelectedCard(item); setIsModalOpen(true); }} onConfirmDelete={(id, uid) => setDeleteDialog({ open: true, id, uid })} />
+            ))}
+          </div>
+
+          <PaginationControls {...pagination} />
+
+          <CardFormDialog open={isModalOpen} onClose={() => setIsModalOpen(false)} onSuccess={() => queryClient.invalidateQueries({ queryKey: ["cards"] })} initialData={selectedCard} />
+
+          <AlertDialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog(prev => ({ ...prev, open }))}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="text-red-600">Hapus Kartu?</AlertDialogTitle>
+                <AlertDialogDescription>Kartu UID <span className="font-bold">{deleteDialog.uid}</span> akan dihapus permanen.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Batal</AlertDialogCancel>
+                <AlertDialogAction onClick={() => deleteMutation.mutate(deleteDialog.id)} className="bg-red-600">Ya, Hapus</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
-
-        <CardTable data={paginatedData} loading={isLoading} page={currentPage} limit={limit} onEdit={(item) => { setSelectedCard(item); setIsModalOpen(true); }} onConfirmDelete={(id, uid) => setDeleteDialog({ open: true, id, uid })} />
-
-        <div className="md:hidden space-y-3">
-          {paginatedData.map((item: any, index: number) => (
-            <CardCard key={item.id} item={item} index={(currentPage - 1) * limit + index} onEdit={(item) => { setSelectedCard(item); setIsModalOpen(true); }} onConfirmDelete={(id, uid) => setDeleteDialog({ open: true, id, uid })} />
-          ))}
-        </div>
-
-        <PaginationControls {...pagination} />
-
-        <CardFormDialog open={isModalOpen} onClose={() => setIsModalOpen(false)} onSuccess={() => queryClient.invalidateQueries({ queryKey: ["cards"] })} initialData={selectedCard} />
-
-        <AlertDialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog(prev => ({ ...prev, open }))}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle className="text-red-600">Hapus Kartu?</AlertDialogTitle>
-              <AlertDialogDescription>Kartu UID <span className="font-bold">{deleteDialog.uid}</span> akan dihapus permanen.</AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Batal</AlertDialogCancel>
-              <AlertDialogAction onClick={() => deleteMutation.mutate(deleteDialog.id)} className="bg-red-600">Ya, Hapus</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
-    </RoleBasedGuard>
+      </RoleBasedGuard>
+    </AuthGuard>
   );
 }

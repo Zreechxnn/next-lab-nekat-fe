@@ -6,7 +6,6 @@ import { createSignalRConnection } from "@/lib/signalr";
 import { HubConnection, HubConnectionState } from "@microsoft/signalr";
 import AccessChart from "@/components/shared/AccessChart";
 import { dashboardService } from "@/services/dashboard.service";
-import { toast } from "sonner";
 import AuthGuard from "@/components/shared/AuthGuard";
 import RoleBasedGuard from "@/components/shared/RoleBasedGuard";
 import { Check, Clock, DoorOpen, FlaskConical, LayoutDashboard } from "lucide-react";
@@ -69,9 +68,12 @@ export default function DashboardPage() {
   useEffect(() => {
     isMounted.current = true;
     const token = getAuthToken();
+    
+    // Pindahkan logika redirect token kosong ke AuthGuard,
+    // tapi tetap aman jika ada di sini sebagai double check.
     if (!token) {
-      router.push("/");
-      return;
+      // Tidak perlu router.push disini karena AuthGuard akan menanganinya
+      return; 
     }
 
     fetchStats();
@@ -84,10 +86,9 @@ export default function DashboardPage() {
       try {
         if (connection.state === HubConnectionState.Disconnected) {
           await connection.start();
-          
+
           if ((connection.state as unknown as HubConnectionState) === HubConnectionState.Connected) {
             await connection.invoke("JoinDashboard");
-            console.log("[SignalR] Dashboard joined successfully");
           }
 
           const refreshAll = () => {
@@ -95,11 +96,9 @@ export default function DashboardPage() {
             fetchChartData(chartMode);
           };
 
-          // --- SILENCE WARNINGS ---
           const silence = () => {};
           connection.on("userstatuschanged", silence);
           connection.on("UserStatusChanged", silence);
-          // ------------------------
 
           connection.on("DashboardStatsUpdated", (payload: any) => {
             if (isMounted.current) {
@@ -140,14 +139,15 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <RoleBasedGuard allowedRoles={["admin", "operator", "guru", "siswa"]}>
-      <AuthGuard>
+    // PERUBAHAN UTAMA: AuthGuard di LUAR, RoleBasedGuard di DALAM
+    <AuthGuard>
+      <RoleBasedGuard allowedRoles={["admin", "operator", "guru", "siswa"]}>
         <div className="font-sans space-y-6">
           <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
             <h1 className="text-xl font-bold text-gray-700 flex items-center gap-2">
               <LayoutDashboard className="text-emerald-600" /> Dashboard
             </h1>
-            <div className="text-xs font-mono font-medium text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200 flex items-center gap-2">
+            <div className="text-xs font-mono font-medium text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200 flex items-center gap-2 notranslate" translate="no">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
@@ -183,13 +183,13 @@ export default function DashboardPage() {
                 ))}
               </div>
             </div>
-            <div className="h-[350px] w-full">
+            <div className="h-[350px] w-full notranslate" translate="no">
               <AccessChart data={chartData} type={chartMode} />
             </div>
           </div>
         </div>
-      </AuthGuard>
-    </RoleBasedGuard>
+      </RoleBasedGuard>
+    </AuthGuard>
   );
 }
 
@@ -201,7 +201,7 @@ function StatCard({ title, value, Icon, color }: any) {
       </div>
       <div>
         <h3 className="text-xs font-medium opacity-90 uppercase tracking-wide">{title}</h3>
-        <p className="text-2xl font-bold mt-0.5">{value || 0}</p>
+        <p className="text-2xl font-bold mt-0.5 notranslate" translate="no">{value || 0}</p>
       </div>
     </div>
   );

@@ -11,7 +11,6 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
-// IMPORT KESADARAN GLOBAL
 import { useAuthStore } from "@/store/useAuthStore";
 
 interface ProfileData {
@@ -25,19 +24,15 @@ interface ProfileData {
 }
 
 export default function MyProfilePage() {
-  // Mengambil fungsi untuk memperbarui memori global
   const { updateUser, user: globalUser } = useAuthStore();
 
-  // State Lokal (Refleksi sementara)
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // State Edit
   const [isEditing, setIsEditing] = useState(false);
   const [editUsername, setEditUsername] = useState("");
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
-  // State Password
   const [passForm, setPassForm] = useState({
     oldPassword: "",
     newPassword: "",
@@ -55,12 +50,9 @@ export default function MyProfilePage() {
       if (response.success) {
         const newData = response.data;
 
-        // 1. Update State Lokal (untuk tampilan halaman ini)
         setProfile(newData);
         setEditUsername(newData.username);
 
-        // 2. SINKRONISASI KE GLOBAL STORE (Penting!)
-        // Agar nama di Header/Sidebar ikut berubah seketika
         updateUser(newData);
       } else {
         toast.error("Gagal memuat esensi profil");
@@ -73,7 +65,6 @@ export default function MyProfilePage() {
     }
   };
 
-  // --- LOGIC EDIT PROFILE ---
   const handleEditClick = () => {
     setEditUsername(profile?.username || "");
     setIsEditing(true);
@@ -97,11 +88,9 @@ export default function MyProfilePage() {
       if (response.success) {
         toast.success("Profil berhasil diperbarui!");
 
-        // Optimistic Update Lokal
         const updatedLocalData = profile ? { ...profile, username: editUsername } : null;
         setProfile(updatedLocalData);
 
-        // SINKRONISASI GLOBAL - Memperbarui 'user' di useAuthStore
         if (globalUser) {
             updateUser({ username: editUsername });
         }
